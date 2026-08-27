@@ -1,0 +1,76 @@
+{
+  "_comment": "参考生视频骨架模板（Wan2.1 VACE / Fun-Control 类）：以角色图片 + 参考视频（姿态/运镜）共同驱动。该类工作流节点随模型版本变化最大，务必在 ComfyUI 界面搭建验证后导出覆盖本文件。",
+  "_defaults": {
+    "checkpoint": "wan2.1_vace_14B_fp8_e4m3fn.safetensors",
+    "width": 1280,
+    "height": 720,
+    "frames": 49,
+    "fps": 16,
+    "steps": 30,
+    "negative": "blurry, low quality, distorted, watermark, text",
+    "cfg": 6,
+    "denoise": 1,
+    "prefix": "r2v"
+  },
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": { "ckpt_name": "{{CHECKPOINT}}" }
+  },
+  "2": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "{{PROMPT}}", "clip": ["1", 1] }
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "inputs": { "text": "{{NEGATIVE}}", "clip": ["1", 1] }
+  },
+  "4": {
+    "class_type": "LoadImage",
+    "inputs": { "image": "{{UPLOADED_IMAGE}}" }
+  },
+  "5": {
+    "class_type": "CLIPVisionEncode",
+    "inputs": { "clip_vision": ["6", 0], "image": ["4", 0] }
+  },
+  "6": {
+    "class_type": "CLIPVisionLoader",
+    "inputs": { "clip_name": "clip_vision_h.safetensors" }
+  },
+  "7": {
+    "class_type": "VHS_LoadVideo",
+    "inputs": {
+      "video": "{{UPLOADED_VIDEO}}",
+      "force_rate": {{FPS}},
+      "frame_load_cap": {{FRAMES}},
+      "skip_first_frames": 0,
+      "select_every_nth": 1
+    }
+  },
+  "9": {
+    "class_type": "EmptyHunyuanLatentVideo",
+    "inputs": { "width": {{WIDTH}}, "height": {{HEIGHT}}, "length": {{FRAMES}}, "batch_size": 1 }
+  },
+  "10": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": {{SEED}},
+      "steps": {{STEPS}},
+      "cfg": {{CFG}},
+      "sampler_name": "uni_pc",
+      "scheduler": "simple",
+      "denoise": {{DENOISE}},
+      "model": ["1", 0],
+      "positive": ["2", 0],
+      "negative": ["3", 0],
+      "latent_image": ["9", 0]
+    }
+  },
+  "11": {
+    "class_type": "VAEDecode",
+    "inputs": { "samples": ["10", 0], "vae": ["1", 2] }
+  },
+  "12": {
+    "class_type": "SaveAnimatedWEBP",
+    "inputs": { "filename_prefix": "{{PREFIX}}", "images": ["11", 0], "fps": {{FPS}}, "lossless": false, "quality": 90, "method": "default" }
+  }
+}
