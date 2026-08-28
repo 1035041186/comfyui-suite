@@ -4,6 +4,27 @@
 
 ---
 
+## [v1.2.3] - 2026-08-28 12:44:51
+
+**更新作者**: yiping zhang
+**更新类型**: 需求调整
+
+### 更新内容
+- 去除各 workflow 中写死的敏感/特定提示词，替换为中性通用版本：
+  - `text-to-image/default_sd15_base.json`、`krea2.json`：成人色情正向提示词 → 「a professional portrait photo, high quality, detailed, soft natural lighting, shallow depth of field」，负向 → 通用负面词。
+  - `text-to-video/default_minimax_h3_t2v.json`：1647 字符的特定动作脚本 → 254 字符通用电影镜头提示词。
+  - `image-to-image/default_img2img_sdx.json`：中性但具体的「young man smiling」→ 通用人像提示词。
+- 保留字段注入能力：默认用中性提示词，传 `--prompt` 覆盖。
+
+### 影响文件
+- `workflows/text-to-image/default_sd15_base.json` — 替换敏感/负向提示词
+- `workflows/text-to-image/krea2.json` — 同上
+- `workflows/text-to-video/default_minimax_h3_t2v.json` — 替换特定动作脚本 prompt
+- `workflows/image-to-image/default_img2img_sdx.json` — 替换具体人像提示词
+- `CHANGELOG.md` — 本条目
+
+---
+
 ## [v1.2.1] - 2026-08-28 11:52:10
 
 **更新作者**: yiping zhang

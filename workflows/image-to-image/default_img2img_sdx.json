@@ -45,8 +45,8 @@
       "crop_h": 0,
       "target_width": 4096,
       "target_height": 4096,
-      "text_g": "a professional photo of a young man smiling\n\nhigh resolution, highly detailed, 4k",
-      "text_l": "a professional photo of a young man smiling\n\nhigh resolution, highly detailed, 4k",
+      "text_g": "a refined portrait, high resolution, highly detailed, professional lighting, 4k",
+      "text_l": "a refined portrait, high resolution, highly detailed, professional lighting, 4k",
       "clip": [
         "14",
         1
@@ -65,8 +65,8 @@
       "crop_h": 0,
       "target_width": 4096,
       "target_height": 4096,
-      "text_g": "blurry, horror, rendering, illustration, drawing, painting",
-      "text_l": "blurry, horror, rendering, illustration, drawing, painting",
+      "text_g": "blurry, low quality, watermark, text, illustration",
+      "text_l": "blurry, low quality, watermark, text, illustration",
       "clip": [
         "14",
         1
