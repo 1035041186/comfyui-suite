@@ -9,7 +9,7 @@ description: 通过 ComfyUI API 图生视频：用户提供一张图片，想让
 
 ## 流程
 
-1. **确认输入图**：本地路径，或 base64（`data:...base64,`/`base64:` 前缀，脚本自动解码上传、**不落盘**）；图片内容即视频首帧/主体，先向用户确认想保留的主体。
+1. **确认输入图**：本地路径，或经 stdin 传 base64（`--image -`，跨 agent / 不落盘 / 无 argv 上限）；图片内容即视频首帧/主体，先向用户确认想保留的主体。
 2. **提示词标准化**：读取 `prompt-guides/video-prompt-guide.md` 选协议——
    音画一体模型用 **H3 协议的 I2VA 写法**（首帧锚定指令行 + 三字段，
    "首帧锚定 → 动作起始 → 连续发展 → 结果/反应"）；传统无声模型则
@@ -31,7 +31,7 @@ python3 scripts/comfyui_api.py image-to-video \
 
 | 参数 | 说明 |
 |---|---|
-| `--image` | 首帧图片：本地路径 或 base64（`data:...base64,`/`base64:` 前缀）（**必填**） |
+| `--image` | 首帧图片：本地文件路径 或 `-`（stdin 读 base64）（**必填**） |
 | `--frames/--fps` | 同 text-to-video；动作幅度小可用 33 帧 |
 | `--width/--height` | 建议与输入图比例一致，避免拉伸 |
 | 其余 | 同 text-to-video |

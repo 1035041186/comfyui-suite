@@ -6,8 +6,8 @@ ComfyUI 统一 API 调用脚本（仅依赖 Python 3.8+ 标准库，无需 pip �
 功能：
   1. 读取 config/comfyui.yaml（或 --config 指定），环境变量优先覆盖；
   2. 上传图片（/upload/image）供图生图 / 图生视频 / 参考生视频使用；
-     `--image/--video` 接受本地文件路径 或 base64（data:...base64, / base64: 前缀），
-     base64 自动解码为字节后上传（不落盘）；
+     `--image/--video` 只接受两种输入：`-`（从 stdin 读 base64，跨 agent、不落盘、
+     无 argv 上限）或 本地文件路径（用户上传/显式给路径/agent 一步拿到的文件）；
   3. 将 workflow 模板（API 格式 JSON，含 {{占位符}}）与参数合并；
   4. 提交任务（POST /prompt），轮询 /history/{prompt_id} 直至完成；
   5. 通过 /view 下载结果文件（图片 / 视频）到输出目录。
@@ -185,7 +185,7 @@ def _sniff_image(data_bytes):
 
     base64 分支没有文件名，用它在内存里定出正确扩展名，避免
     "png 字节存成 .jpg" 这类扩展名与内容不一致的问题。
-    识别失败时回退 .bin / application/octet-stream。
+    识别失败时回退 .bin / application/octet-stream（供合法性校验判定）。
     """
     if data_bytes and data_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
         return ".png", "image/png"
@@ -197,38 +197,59 @@ def _sniff_image(data_bytes):
         return ".webp", "image/webp"
     if data_bytes and data_bytes.startswith(b"BM"):
         return ".bmp", "image/bmp"
+    if data_bytes and (data_bytes.startswith(b"II*\x00") or data_bytes.startswith(b"MM\x00*")):
+        return ".tif", "image/tiff"
+    if data_bytes and len(data_bytes) >= 12 and data_bytes[4:8] == b"ftyp":
+        brand = data_bytes[8:12]
+        if brand in (b"avif", b"avis"):
+            return ".avif", "image/avif"
+        if brand in (b"heic", b"heix", b"heif", b"mif1"):
+            return ".heic", "image/heic"
     return ".bin", "application/octet-stream"
+
+
+def _resolve_base64_text(text):
+    """把一段 base64 文本（data URI / `base64:` 前缀 / 裸 base64）解码为图片字节。
+
+    供 `--image -`（stdin）使用，统一产出 (字节, 文件名, content_type)。
+    通过魔数定扩展名/类型，纯内存、不落盘；解码后**校验**是否为可识别的图片，
+    不是则明确报错（防止把非法/非图片数据当图上传）。
+    """
+    t = (text or "").strip()
+    if not t:
+        raise RuntimeError("base64 内容为空")
+    if t.startswith("data:") and ";base64," in t:
+        _, _, b64 = t.partition(";base64,")
+    elif t.lower().startswith("base64:"):
+        b64 = t.split(":", 1)[1].strip()
+    else:
+        b64 = t  # 裸 base64（stdin 场景内容即 base64）
+    if not b64:
+        raise RuntimeError("base64 内容为空")
+    data = _b64decode(b64)
+    ext, ctype = _sniff_image(data)
+    if ext == ".bin":
+        raise RuntimeError("stdin 的 base64 解码后不是可识别的图片（非法/非图片数据）")
+    return data, "paste" + ext, ctype
 
 
 def _resolve_bytes(value):
     """归一化图片/视频输入为统一结构，供上传使用。
 
-    识别三种来源（无歧义标记才判为 base64，其余一律按本地文件路径处理）：
-      1. data:image/<mime>;base64,<b64>   data URI
-      2. base64:<b64>                     显式 base64 标记
-      3. 其余                               本地文件路径
-
-    base64 分支：解码出字节 → `_sniff_image` 定扩展名/类型（纯内存，不落盘）。
-    路径分支：校验文件存在 → 读取字节 → basename + mimetypes 定类型。
+    只保留两条主线（职责分明）：
+      - `-`                            从 stdin 读取 base64（跨 agent / 不落盘 / 无 argv 上限）
+      - 其余一律按本地文件路径        用户上传、显式给路径、或 agent 一步直接拿到的文件
+    不再支持内联 base64 与 @文件（避免 路径/base64 歧义，也避免耦合 DSH 文件路径）。
 
     返回 (data_bytes, filename, content_type)。
     """
     desc = (value or "").strip()
     if not desc:
         raise RuntimeError("--image/--video 未提供值")
-    if desc.startswith("data:") and ";base64," in desc:
-        _, _, b64 = desc.partition(";base64,")
-        data = _b64decode(b64)
-        ext, ctype = _sniff_image(data)
-        return data, "paste" + ext, ctype
-    if desc.lower().startswith("base64:"):
-        b64 = desc.split(":", 1)[1].strip()
-        data = _b64decode(b64)
-        ext, ctype = _sniff_image(data)
-        return data, "paste" + ext, ctype
-    # 路径分支
+    if desc == "-":
+        return _resolve_base64_text(sys.stdin.read())
     if not os.path.isfile(desc):
-        raise RuntimeError("输入文件不存在（也不是合法 base64 标记）: " + desc)
+        raise RuntimeError("输入文件不存在: " + desc)
     with open(desc, "rb") as f:
         data = f.read()
     fname = os.path.basename(desc)
@@ -1130,7 +1151,7 @@ def add_gen_args(sp):
     """为生成/校验命令添加统一的可变参数集。"""
     sp.add_argument("--prompt", default=None, help="正向提示词（缺省用模板 _defaults/导出值）")
     sp.add_argument("--negative", default=None, help="负向提示词（默认取 workflow _defaults）")
-    sp.add_argument("--image", help="输入图片：本地文件路径 或 base64（data:image/...;base64, 或 base64: 前缀）。（图生图/图生视频/参考生视频必填）")
+    sp.add_argument("--image", help="输入图片：`-`（从 stdin 读 base64，跨 agent/不落盘/无 argv 上限）或 本地文件路径（用户上传/显式给路径/agent 一步拿到的文件）。（图生图/图生视频/参考生视频必填）")
     sp.add_argument("--video", help="参考视频本地路径（reference-to-video 用）")
     sp.add_argument("--seed", type=int, help="随机种子（缺省随机）")
     sp.add_argument("--width", type=int, help="宽度")

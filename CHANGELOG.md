@@ -4,6 +4,27 @@
 
 ---
 
+## [v1.4.1] - 2026-08-28 17:25:04
+
+**更新作者**: yiping zhang
+**更新类型**: 需求调整
+
+### 更新内容
+- `--image/--video` 输入收敛为两种、职责分明：`-`（从 stdin 读 base64，跨 agent / 不落盘 / 无命令行 argv 上限）或 本地文件路径（用户上传 / 显式给路径 / agent 一步直接拿到的文件）。
+- **移除**内联 base64 与 `@文件`：消除"值到底是路径还是 base64"的歧义，也避免耦合 DSH 专属文件路径。base64 只经 stdin 通道进入。
+- base64 解码后新增**图片合法性校验**：用魔数识别图片格式，识别不出（非法/非图片数据）即明确报错，防止把错误数据当图上传；同时扩展识别 tiff/avif/heic。
+- 明确 agent 选择规则：base64 与文件路径都可用、且文件路径能**一步直接拿到**（无需查找/构造）时**优先文件路径**；否则（如粘贴图）走 `--image -`（stdin base64）。
+
+### 影响文件
+- `scripts/comfyui_api.py` — 输入收敛、移除内联/`@文件`、新增合法性校验、帮助与文档更新
+- `SKILL.md` — `--image/--video` 取值与选择规则
+- `skills/image-to-image/SKILL.md` — `--image` 支持 路径 / stdin(base64)
+- `skills/image-to-video/SKILL.md` — 同上
+- `skills/reference-to-video/SKILL.md` — 同上
+- `CHANGELOG.md` — 本条目
+
+---
+
 ## [v1.4.0] - 2026-08-28 16:06:28
 
 **更新作者**: yiping zhang
