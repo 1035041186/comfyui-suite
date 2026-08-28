@@ -112,7 +112,7 @@ def deep_merge(base, override):
 
 def env_overrides(cfg):
     """支持环境变量覆盖：COMFYUI_HOST / COMFYUI_PORT / COMFYUI_PROTOCOL /
-    COMFYUI_API_KEY / COMFYUI_OUTPUT_DIR / COMFYUI_POLL_MAX"""
+    COMFYUI_API_KEY / COMFYUI_OUTPUT_DIR / COMFYUI_POLL_MAX / COMFYUI_BATCH"""
     mapping = {
         "COMFYUI_HOST": ("server", "host"),
         "COMFYUI_PORT": ("server", "port"),
@@ -120,6 +120,7 @@ def env_overrides(cfg):
         "COMFYUI_API_KEY": ("server", "api_key"),
         "COMFYUI_OUTPUT_DIR": ("output", "dir"),
         "COMFYUI_POLL_MAX": ("timeouts", "poll_max"),
+        "COMFYUI_BATCH": ("generate", "batch"),
     }
     out = {}
     for env_key, (sec, name) in mapping.items():
@@ -138,6 +139,10 @@ def load_config(path):
     server.setdefault("port", 8188)
     cfg.setdefault("timeouts", {})
     cfg.setdefault("output", {})
+    # 生成默认张数：每次任务默认生成几张（写 Empty*Latent*.batch_size）。
+    # 优先级：CLI --batch > config generate.batch > workflow 模板值（模板默认 8）。
+    gen = cfg.setdefault("generate", {})
+    gen.setdefault("batch", 1)
     return cfg
 
 
@@ -656,7 +661,7 @@ def _resolve_ref(graph, ref):
     return None, None
 
 
-def apply_field_overrides(graph, args):
+def apply_field_overrides(graph, args, cfg):
     """在已渲染的 graph 上做字段级语义注入（供导出 JSON 直接使用，无需 {{}}）。
     按范式分两条路：SD/通用（KSampler 定位）与 MiniMax-H3 视频（专属节点定位）。
 
@@ -777,8 +782,13 @@ def apply_field_overrides(graph, args):
                 ins["strength_clip"] = args.lora_strength_clip
                 written.append((nid, "strength_clip", args.lora_strength_clip))
 
-    # ---- 空 latent 尺寸 / 帧数 ----
-    if args.width or args.height or args.frames or args.batch:
+    # ---- 空 latent 尺寸 / 帧数 / 批量 ----
+    # 张数默认取配置 generate.batch（缺省 1），CLI --batch 可覆盖；
+    # 未显式传参时也用配置默认值，避免模板里的 batch_size=8 一次出 8 张。
+    eff_batch = getattr(args, "batch", None)
+    if eff_batch is None:
+        eff_batch = cfg.get("generate", {}).get("batch", 1)
+    if args.width or args.height or args.frames or eff_batch:
         for nid, node in graph.items():
             if not isinstance(node, dict):
                 continue
@@ -797,10 +807,9 @@ def apply_field_overrides(graph, args):
                 if key:
                     ins[key] = args.frames
                     written.append((nid, key, args.frames))
-            if args.batch:
-                if "batch_size" in ins:
-                    ins["batch_size"] = args.batch
-                    written.append((nid, "batch_size", args.batch))
+            if "batch_size" in ins:
+                ins["batch_size"] = eff_batch
+                written.append((nid, "batch_size", eff_batch))
 
     # ---- 输出前缀 ----
     for nid, node in graph.items():
@@ -928,7 +937,7 @@ def cmd_run(args, cfg):
     graph.pop("_defaults", None)
 
     # 字段级语义注入：导出 JSON 无 {{}} 时，也能按参数定位并写入对应节点输入
-    graph, field_written = apply_field_overrides(graph, args)
+    graph, field_written = apply_field_overrides(graph, args, cfg)
     # --set 支持 NODE.FIELD=value（定位任意节点输入）与 KEY=value（占位符兼容）
     if args.set:
         for pair in args.set:
@@ -1095,7 +1104,7 @@ def cmd_validate(args, cfg):
     graph.pop("_defaults", None)
 
     # 与生成一致：叠加字段级注入，让 --checkpoint/--width 等在校验时也生效
-    graph, _ = apply_field_overrides(graph, args)
+    graph, _ = apply_field_overrides(graph, args, cfg)
 
     issues = []
     missing_nodes = []
@@ -1192,7 +1201,7 @@ def add_gen_args(sp):
                          "如 --lora 10:svi-shot.safetensors --lora strength=1.2")
     sp.add_argument("--lora-strength-model", type=float, help="LoRA 模型权重 strength_model")
     sp.add_argument("--lora-strength-clip", type=float, help="LoRA CLIP 权重 strength_clip")
-    sp.add_argument("--batch", type=int, help="一次生成的张数（写 Empty*Latent* 的 batch_size，默认取模板）")
+    sp.add_argument("--batch", type=int, help="一次生成的张数（写 Empty*Latent* 的 batch_size）。缺省读 config `generate.batch`（默认为 1）")
     sp.add_argument("--prefix", help="输出文件名前缀")
     sp.add_argument("--workflow", help="指定 workflow JSON 路径（默认取 workflows/<类型>/default*.json）")
     sp.add_argument("--set", action="append", metavar="NODE.FIELD=VALUE",

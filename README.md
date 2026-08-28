@@ -88,17 +88,23 @@ timeouts:
 output:
   dir: outputs          # 相对会话工作根；最终 <会话根>/outputs/<类型>/
   auto_download: true
+
+generate:
+  batch: 1              # 每次任务的默认生成张数；CLI --batch 可覆盖，环境变量 COMFYUI_BATCH 也可
 ```
 
 - **本仓库默认**连 `10.0.0.1:8188`；如果你没配置、也没读到配置，脚本会回退到 `127.0.0.1:8188`。
 - 也可用**环境变量**覆盖，优先级最高：`COMFYUI_HOST`、`COMFYUI_PORT`、`COMFYUI_PROTOCOL`、
-  `COMFYUI_API_KEY`、`COMFYUI_OUTPUT_DIR`。
+  `COMFYUI_API_KEY`、`COMFYUI_OUTPUT_DIR`、`COMFYUI_BATCH`。
 
 ### 2.2 生成参数（尺寸/步数/模型名）——**不在配置文件里**
 
 尺寸、步数、cfg、模型名这类生成参数**跟随工作流模板**写在各模板的 `_defaults` 里
 （例如 SDXL 模板默认 1024×1024、Wan 视频模板默认 1280×720@16fps）。换模板即换默认值，
 避免写进全局配置和模板打架。你想要单次覆盖，直接用 CLI 参数（`--width/--steps/--checkpoint/...`）。
+
+> **唯一例外：`generate.batch`**（每次生成张数）。因为同一部署通常固定出图数量，所以作为全局默认
+> 放在配置里，默认 1；需要临时改时用 `--batch N`，优先级 `CLI --batch > generate.batch > 模板值`。
 
 ### 2.3 模型与工作流
 

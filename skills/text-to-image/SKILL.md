@@ -58,4 +58,4 @@ python3 scripts/comfyui_api.py text-to-image \
 
 - 结果与描述不符 → 提示词未标准化，回到第 1 步；或调高 `--cfg`。
 - 报 model 不存在 → `--checkpoint` 指定的文件名与服务端不一致。
-- 想要多张 → 用不同 `--seed` 多次调用。
+- 想要多张 → 用 `--batch N`（默认张数读 `config/comfyui.yaml` 的 `generate.batch`，缺省 1），或用不同 `--seed` 多次调用。

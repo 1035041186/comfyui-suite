@@ -4,6 +4,27 @@
 
 ---
 
+## [v1.5.1] - 2026-08-28 23:49:40
+
+**更新作者**: yiping zhang
+**更新类型**: 需求调整
+
+### 更新内容
+- 生成张数改为配置驱动：新增 `config/comfyui.yaml` 的 `generate.batch`（默认 1），脚本读 `generate` 段并将 `Empty*Latent*.batch_size` 写为配置默认值，不再沿用模板里一次 8 张。
+- 默认张数优先级：CLI `--batch N` > `generate.batch`（默认 1）> 模板值；`COMFYUI_BATCH` 环境变量也可覆盖。
+- 修复 `apply_field_overrides` 读取配置时 `cfg` 未传入导致的 `NameError`（此前仅 `--batch` 显式传参时可绕过），现改为传入 `cfg`。
+- README / SKILL / text-to-image 子 skill 同步说明 `generate.batch` 与"想要多张用 `--batch`"。
+
+### 影响文件
+- `scripts/comfyui_api.py` — 新增 `generate.batch` 读取与注入、`COMFYUI_BATCH` 环境变量、`apply_field_overrides(graph,args,cfg)` 签名修正
+- `config/comfyui.yaml` — 新增 `generate.batch` 段及说明
+- `README.md` — 配置示例与环境变量补 `generate.batch`/`COMFYUI_BATCH`，§2.2 例外说明
+- `SKILL.md` — 参数取值优先级补充默认张数例外
+- `skills/text-to-image/SKILL.md` — 常见问题"想要多张"改为 `--batch`
+- `CHANGELOG.md` — 本条目
+
+---
+
 ## [v1.5.0] - 2026-08-28 23:35:58
 
 **更新作者**: yiping zhang

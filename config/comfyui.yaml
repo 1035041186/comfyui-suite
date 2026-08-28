@@ -4,8 +4,13 @@
 # 写在各 workflow 模板的 `_defaults` 字段中（见 workflows/README.md），
 # 运行时可用 CLI 参数覆盖，优先级：CLI > workflow _defaults。
 #
+# 唯一例外是 `generate.batch`（每次生成张数）：这是全局默认出图数量，
+# 放在这里统一控制（默认 1），因为同一部署通常固定出图张数；
+# 需要临时改时用 CLI `--batch N` 覆盖，优先级：CLI --batch > generate.batch > 模板值。
+#
 # 环境变量可覆盖同名配置项（环境变量优先）：
-#   COMFYUI_HOST / COMFYUI_PORT / COMFYUI_PROTOCOL / COMFYUI_API_KEY / COMFYUI_OUTPUT_DIR
+#   COMFYUI_HOST / COMFYUI_PORT / COMFYUI_PROTOCOL / COMFYUI_API_KEY /
+#   COMFYUI_OUTPUT_DIR / COMFYUI_POLL_MAX / COMFYUI_BATCH
 
 server:
   protocol: http          # http | https
@@ -24,3 +29,8 @@ output:
                           # 会话根由流程确定（优先系统声明的 working directory，其次 pwd），
                           # 可用 --output <绝对路径> 或环境变量 COMFYUI_OUTPUT_DIR 覆盖产出根
   auto_download: true     # 任务完成后自动从 /view 下载结果文件
+
+generate:
+  batch: 1                # 每次任务的默认生成张数（写 Empty*Latent*.batch_size）
+                          # 优先级：CLI --batch > 本配置 > workflow 模板值；默认 1
+                          # 环境变量 COMFYUI_BATCH 也可覆盖

@@ -156,7 +156,8 @@ python3 scripts/comfyui_api.py <类型> \
 - 先 `--dry-run` 校验最终 JSON（能正确注入、排除错误时使用）；
 - 脚本自动上传图片 → 提交 → 轮询 → 下载结果到 `outputs/`，stdout 输出含 `local_path`；
 - 详细参数见 `scripts/comfyui_api.py --help` 与各子 skill；
-- 参数取值优先级：**CLI 显式 > workflow 自带硬编码值**（`--dry-run` 看注入结果确认）。
+- 参数取值优先级：**CLI 显式 > workflow 自带硬编码值**（`--dry-run` 看注入结果确认）；
+- 例外：默认张数走 `CLI --batch > config generate.batch（默认 1）> 模板值`，因此默认不再一次生成多张。
 
 ### 第 5 步：交付报告
 
