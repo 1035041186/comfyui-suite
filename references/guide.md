@@ -41,7 +41,8 @@ comfyui-suite/
 ├── references/                     # 按需加载的参考文档
 │   ├── guide.md                    # 使用/安装/扩展/配置分层（本文件）
 │   ├── models.md                   # 模型目录（含 LoRA、用途、更换流程）
-│   └── reporting.md                # 交付报告规范与示例
+│   ├── reporting.md                # 交付报告规范与示例
+│   └── execution-plan.md           # 可移植执行计划 + 宿主任务清单适配（跨 agent）
 └── skills/<类型>/SKILL.md          # 子 skill（单类型精细控制）
 ```
 

@@ -4,6 +4,25 @@
 
 ---
 
+## [v1.4.2] - 2026-08-28 17:51:33
+
+**更新作者**: yiping zhang
+**更新类型**: 需求调整
+
+### 更新内容
+- 总入口 `SKILL.md` 新增「执行步骤清单」：把执行流程整理为 **5 个具名步骤**（路由判定 / 提示词标准化 / 服务检查与选模型 / 调用生成 / 交付报告），作为**可移植的计划数据**。
+- 增加**宿主无关**的驱动规则：agent 把步骤登记为**宿主自带的任务清单**并随进度更新状态；宿主无任务清单工具时退化为**文本清单**；skill 不依赖、不实现任何宿主专属任务清单调用。
+- 新增参考文档 `references/execution-plan.md`：定义可移植计划模型（`steps:[{title,status}]`，整份替换）、宿主无关同步规则、以及 DSH 映射示例（**仅示例，非依赖**），并说明跨 agent 边界。
+- 渐进式披露校验与修复：把计划/适配的细节下沉到 `references/`，常驻 `SKILL.md` 只保留精简步骤骨架与外链；`references/guide.md` 目录树同步登记 `execution-plan.md`。
+
+### 影响文件
+- `SKILL.md` — 新增执行步骤清单（canonical plan）+ 宿主无关驱动规则 + 指向参考文档
+- `references/execution-plan.md` — 新增：可移植计划模型 + 宿主映射示例（非依赖）+ 边界
+- `references/guide.md` — references/ 目录树补充 execution-plan.md
+- `CHANGELOG.md` — 本条目
+
+---
+
 ## [v1.4.1] - 2026-08-28 17:25:04
 
 **更新作者**: yiping zhang
