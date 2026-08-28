@@ -14,7 +14,7 @@
 
 | 类型 | 默认模板 | 模型栈 | 状态 |
 |---|---|---|---|
-| `text-to-image` | `default_sdx15_base.json` | SD 整包 | ✅ 真实可跑 |
+| `text-to-image` | `default_sd15_base.json` | SD 整包 | ✅ 真实可跑 |
 | `text-to-image`（备选） | `krea2.json` | Krea2 分体 | ✅ 真实可跑（需 `--workflow krea2.json`） |
 | `image-to-image` | `default_img2img_sdx.json` | SD（整包+VAEEncode） | ✅ 真实可跑 |
 | `text-to-video` | `default_minimax_h3_t2v.json` | MiniMax-H3 音画 | ✅ 真实可跑 |
@@ -69,6 +69,26 @@
 | **占位符模板**（可增强） | 手动加 `{{PROMPT}}` 等 | 渲染前文本替换 + 字段注入 |
 
 两种形态脚本都会先渲染（占位符），再叠字段注入，兼容并存。
+
+## 同类型多模板：实际路由与命名建议
+
+一个类型目录可放多套不同**模型栈**的工作流（如 `text-to-image` 有 SD 整包 + Krea2 分体）。
+路由规则：
+
+- **默认**：用户没指定 → 用 `default_` 前缀的工作流（`list` 里标 `*`）；
+- **选其它**：`--workflow <文件名>`；
+- **跨栈不自动换**：不同工作流=不同模型栈（节点接入不同），LLM 判断"该用哪个栈"靠
+  工作流**文件名语义** + `references/models.md`，不要把一个栈硬套到另一个。
+
+**命名建议（让 LLM 能可靠路由，避免歧义）**：
+- `default_<栈>_<用途>.json`：栈语义用无歧义词，如 `default_sd15_base`（SD1.5 整包）、
+  `default_minimax_h3_t2v`（MiniMax-H3 文生视频）；
+- 非默认模板用 `default_` 之外的前缀，如 `krea2.json`（需 `--workflow` 显式选）；
+- 避免 `sdx15`/`x1` 这类易被误读为别的栈的名字；栈名后缀规范：
+  `sd15`（SD1.5）、`sdxl`（SDXL）、`krea2`、`h3`。
+
+> ⚠️ 命名是路由的"眼睛"：`list` 只能显示文件名，LLM 靠文件名 + models.md 判断用哪个栈。
+> 命名模糊会让多模板场景下选错工作流。
 
 ## 模板放置与默认选择
 

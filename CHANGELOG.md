@@ -4,7 +4,23 @@
 
 ---
 
-## [v1.1.0] - 2026-08-28 10:49:45
+## [v1.1.1] - 2026-08-28 10:52:00
+
+**更新作者**: yiping zhang
+**更新类型**: 需求调整
+
+### 更新内容
+- 明确"类型内多工作流路由"规则：同类型多栈模板时，默认用 `default_` 前缀，跨栈需显式 `--workflow`。
+- 修正文生图默认模板命名 `default_sdx15_base` → `default_sd15_base`（消除 SD 命名歧义）。
+- `workflows/README.md` 补命名规范与多模板路由说明。
+
+### 影响文件
+- `SKILL.md` — 新增「第 1.5 步：类型内路由」规则
+- `workflows/README.md` — 多模板路由与命名规范
+- `workflows/text-to-image/default_sd15_base.json` — 改名（原 default_sdx15_base）
+- `CHANGELOG.md` — 本条目
+
+---
 
 **更新作者**: yiping zhang
 **更新类型**: 需求新增（功能增强）
