@@ -4,6 +4,22 @@
 
 ---
 
+## [v1.3.1] - 2026-08-28 14:18:19
+
+**更新作者**: yiping zhang
+**更新类型**: BUG修复
+
+### 更新内容
+- 修复 config/comfyui.yaml 早期被整文件覆盖时误删的 `server`（host/port/api_key）与 `timeouts` 两节，恢复为完整服务连接配置。
+- 恢复后脚本正确连到 `10.0.0.1:8188`（此前因缺 server.host 回退到默认 127.0.0.1 导致 health 失败）。
+- 保留 output.dir=outputs（相对会话根）的当前设计。
+
+### 影响文件
+- `config/comfyui.yaml` — 补回 server/timeouts 节
+- `CHANGELOG.md` — 本条目
+
+---
+
 ## [v1.3.0] - 2026-08-28 14:06:07
 
 **更新作者**: yiping zhang
