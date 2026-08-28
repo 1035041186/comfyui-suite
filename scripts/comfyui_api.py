@@ -681,8 +681,13 @@ def apply_field_overrides(graph, args):
             ref = (sampler.get("inputs") or {}).get(ref_attr)
             nid, node = _resolve_ref(graph, ref)
             val = getattr(args, prompt_attr, None)
-            if val is not None and node and node.get("class_type") == "CLIPTextEncode":
-                _set([nid], "text", val)
+            if val is not None and node is not None:
+                # SD/通用：CLIPTextEncode 写 text；SDXL 双编码器写 text_g + text_l（若无 SDXL 节点，给回空）
+                if node.get("class_type") == "CLIPTextEncode":
+                    _set([nid], "text", val)
+                elif node.get("class_type") == "CLIPTextEncodeSDXL":
+                    _set([nid], "text_g", val)
+                    _set([nid], "text_l", val)
 
     # ---- 采样器参数：seed/steps/cfg/denoise ----
     if sampler and sid:

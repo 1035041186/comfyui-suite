@@ -4,6 +4,23 @@
 
 ---
 
+## [v1.4.4] - 2026-08-28 18:54:28
+
+**更新作者**: yiping zhang
+**更新类型**: BUG修复
+
+### 更新内容
+- 修复 `--prompt/--negative` 在 SDXL 模板（`CLIPTextEncodeSDXL` 双编码器）中未注入的问题：现自动写入 `text_g` 与 `text_l`（此前仅精确匹配 `CLIPTextEncode.text`，导致 SDXL 模板的提示词静默失效）。
+- 澄清 `--image/--video` 取值决策表：只有 base64 用 `-`（stdin）；只有文件路径用路径；二者都有且路径一步可取（无需查找/构造）时用路径；并强调 base64 指「作为输入真正存在的 base64」，不是把文件再编码一份去走 base64 通道。
+
+### 影响文件
+- `scripts/comfyui_api.py` — 支持 CLIPTextEncodeSDXL 的 text_g/text_l 注入
+- `SKILL.md` — `--image/--video` 取值改为三条决策表
+- `README.md` — 同步 `--image/--video` 取值说明
+- `CHANGELOG.md` — 本条目
+
+---
+
 ## [v1.4.3] - 2026-08-28 17:53:28
 
 **更新作者**: yiping zhang
