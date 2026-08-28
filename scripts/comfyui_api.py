@@ -6,6 +6,8 @@ ComfyUI 统一 API 调用脚本（仅依赖 Python 3.8+ 标准库，无需 pip �
 功能：
   1. 读取 config/comfyui.yaml（或 --config 指定），环境变量优先覆盖；
   2. 上传图片（/upload/image）供图生图 / 图生视频 / 参考生视频使用；
+     `--image/--video` 接受本地文件路径 或 base64（data:...base64, / base64: 前缀），
+     base64 自动解码为字节后上传（不落盘）；
   3. 将 workflow 模板（API 格式 JSON，含 {{占位符}}）与参数合并；
   4. 提交任务（POST /prompt），轮询 /history/{prompt_id} 直至完成；
   5. 通过 /view 下载结果文件（图片 / 视频）到输出目录。
@@ -20,6 +22,7 @@ ComfyUI 统一 API 调用脚本（仅依赖 Python 3.8+ 标准库，无需 pip �
 退出码：0 成功；2 参数/配置错误；3 网络或服务错误；4 任务执行失败/超时。
 """
 import argparse
+import base64
 import json
 import mimetypes
 import os
@@ -166,7 +169,79 @@ def _request(cfg, method, path, data=None, headers=None, timeout=60, binary=None
         raise RuntimeError("无法连接 ComfyUI ({}): {}".format(url, e.reason))
 
 
-def _encode_multipart(field_file, file_path, extra_fields):
+def _b64decode(s):
+    """解码 base64，自动补全缺失的 padding（兼容无 '=' 结尾的输入）。"""
+    s = (s or "").strip()
+    if not s:
+        raise RuntimeError("base64 内容为空")
+    pad = len(s) % 4
+    if pad:
+        s += "=" * (4 - pad)
+    return base64.b64decode(s, validate=False)
+
+
+def _sniff_image(data_bytes):
+    """从字节头（magic bytes）推断图片扩展名与 Content-Type。
+
+    base64 分支没有文件名，用它在内存里定出正确扩展名，避免
+    "png 字节存成 .jpg" 这类扩展名与内容不一致的问题。
+    识别失败时回退 .bin / application/octet-stream。
+    """
+    if data_bytes and data_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        return ".png", "image/png"
+    if data_bytes and data_bytes.startswith(b"\xff\xd8\xff"):
+        return ".jpg", "image/jpeg"
+    if data_bytes and (data_bytes.startswith(b"GIF87a") or data_bytes.startswith(b"GIF89a")):
+        return ".gif", "image/gif"
+    if data_bytes and data_bytes[:4] == b"RIFF" and data_bytes[8:12] == b"WEBP":
+        return ".webp", "image/webp"
+    if data_bytes and data_bytes.startswith(b"BM"):
+        return ".bmp", "image/bmp"
+    return ".bin", "application/octet-stream"
+
+
+def _resolve_bytes(value):
+    """归一化图片/视频输入为统一结构，供上传使用。
+
+    识别三种来源（无歧义标记才判为 base64，其余一律按本地文件路径处理）：
+      1. data:image/<mime>;base64,<b64>   data URI
+      2. base64:<b64>                     显式 base64 标记
+      3. 其余                               本地文件路径
+
+    base64 分支：解码出字节 → `_sniff_image` 定扩展名/类型（纯内存，不落盘）。
+    路径分支：校验文件存在 → 读取字节 → basename + mimetypes 定类型。
+
+    返回 (data_bytes, filename, content_type)。
+    """
+    desc = (value or "").strip()
+    if not desc:
+        raise RuntimeError("--image/--video 未提供值")
+    if desc.startswith("data:") and ";base64," in desc:
+        _, _, b64 = desc.partition(";base64,")
+        data = _b64decode(b64)
+        ext, ctype = _sniff_image(data)
+        return data, "paste" + ext, ctype
+    if desc.lower().startswith("base64:"):
+        b64 = desc.split(":", 1)[1].strip()
+        data = _b64decode(b64)
+        ext, ctype = _sniff_image(data)
+        return data, "paste" + ext, ctype
+    # 路径分支
+    if not os.path.isfile(desc):
+        raise RuntimeError("输入文件不存在（也不是合法 base64 标记）: " + desc)
+    with open(desc, "rb") as f:
+        data = f.read()
+    fname = os.path.basename(desc)
+    ctype = mimetypes.guess_type(fname)[0] or "application/octet-stream"
+    return data, fname, ctype
+
+
+def _encode_multipart_bytes(field_file, filename, data_bytes, content_type, extra_fields):
+    """由字节构造 multipart/form-data 请求体。
+
+    与旧 `_encode_multipart` 的区别：数据来自参数而非文件路径（不落盘），
+    且 Content-Type 由调用方传入（base64 分支用 `_sniff_image` 的结果）。
+    """
     boundary = uuid.uuid4().hex
     crlf = b"\r\n"
     parts = []
@@ -174,14 +249,11 @@ def _encode_multipart(field_file, file_path, extra_fields):
         parts.append(b"--" + boundary.encode() + crlf)
         parts.append(('Content-Disposition: form-data; name="{}"'.format(k)).encode() + crlf + crlf)
         parts.append(str(v).encode() + crlf)
-    fname = os.path.basename(file_path)
-    ctype = mimetypes.guess_type(fname)[0] or "application/octet-stream"
     parts.append(b"--" + boundary.encode() + crlf)
     parts.append(('Content-Disposition: form-data; name="{}"; filename="{}"'.format(
-        field_file, fname)).encode() + crlf)
-    parts.append(("Content-Type: " + ctype).encode() + crlf + crlf)
-    with open(file_path, "rb") as f:
-        parts.append(f.read() + crlf)
+        field_file, filename)).encode() + crlf)
+    parts.append(("Content-Type: " + (content_type or "application/octet-stream")).encode() + crlf + crlf)
+    parts.append(data_bytes + crlf)
     parts.append(b"--" + boundary.encode() + b"--" + crlf)
     return b"".join(parts), "multipart/form-data; boundary=" + boundary
 
@@ -198,11 +270,9 @@ def check_health(cfg):
         return False
 
 
-def upload_image(cfg, file_path):
-    """上传本地图片到 ComfyUI input 目录，返回服务端文件名。"""
-    if not os.path.isfile(file_path):
-        raise RuntimeError("输入文件不存在: " + file_path)
-    payload, ctype = _encode_multipart("image", file_path, {"overwrite": "true"})
+def _upload_bytes(cfg, filename, data_bytes, content_type):
+    """以 bytes 上传到 ComfyUI input 目录，返回服务端文件名。"""
+    payload, ctype = _encode_multipart_bytes("image", filename, data_bytes, content_type, {"overwrite": "true"})
     _, raw = _request(cfg, "POST", "/upload/image",
                       headers={"Content-Type": ctype}, binary=payload, timeout=120)
     info = json.loads(raw.decode("utf-8"))
@@ -210,6 +280,15 @@ def upload_image(cfg, file_path):
     if not name:
         raise RuntimeError("上传响应异常: " + raw.decode("utf-8", "replace")[:500])
     return name
+
+
+def upload_image(cfg, source):
+    """上传图片到 ComfyUI input 目录，返回服务端文件名。
+
+    兼容原调用方：接受本地文件路径 / base64 data URI / `base64:` 前缀。
+    """
+    data, filename, ctype = _resolve_bytes(source)
+    return _upload_bytes(cfg, filename, data, ctype)
 
 
 def queue_prompt(cfg, prompt_graph, client_id):
@@ -778,7 +857,7 @@ def _apply_h3_overrides(graph, args, written):
 def cmd_run(args, cfg):
     needs_image = args.command in ("image-to-image", "image-to-video", "reference-to-video")
     if needs_image and not args.image:
-        print("错误: {} 需要 --image <本地图片路径>".format(args.command), file=sys.stderr)
+        print("错误: {} 需要 --image <本地图片路径或base64>".format(args.command), file=sys.stderr)
         return 2
     if args.command == "reference-to-video" and not args.video:
         print("错误: reference-to-video 需要 --video <本地参考视频路径>", file=sys.stderr)
@@ -1051,7 +1130,7 @@ def add_gen_args(sp):
     """为生成/校验命令添加统一的可变参数集。"""
     sp.add_argument("--prompt", default=None, help="正向提示词（缺省用模板 _defaults/导出值）")
     sp.add_argument("--negative", default=None, help="负向提示词（默认取 workflow _defaults）")
-    sp.add_argument("--image", help="输入图片本地路径（图生图/图生视频/参考生视频必填）")
+    sp.add_argument("--image", help="输入图片：本地文件路径 或 base64（data:image/...;base64, 或 base64: 前缀）。（图生图/图生视频/参考生视频必填）")
     sp.add_argument("--video", help="参考视频本地路径（reference-to-video 用）")
     sp.add_argument("--seed", type=int, help="随机种子（缺省随机）")
     sp.add_argument("--width", type=int, help="宽度")

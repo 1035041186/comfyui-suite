@@ -4,6 +4,27 @@
 
 ---
 
+## [v1.4.0] - 2026-08-28 16:06:28
+
+**更新作者**: yiping zhang
+**更新类型**: 需求新增
+
+### 更新内容
+- `--image`/`--video` 新增支持 base64 输入（`data:image/...;base64,` 与 `base64:` 前缀），脚本自动解码为字节后直接上传，全程**不落盘**临时文件。
+- 重构上传为「字节归一化 → 统一 multipart 上传」：新增 `_resolve_bytes`（识别 data URI / `base64:` / 本地路径）、`_sniff_image`（按 magic bytes 定扩展名与 Content-Type）、`_encode_multipart_bytes`（由字节构造 multipart 体）、`_upload_bytes`；`upload_image` 改为薄封装，对原调用方保持兼容。
+- 支持"粘贴到会话里的图直接使用"：可直接把该图的 base64 传给 `--image`，无需先落盘成文件（替代此前"读 agent 临时/附件文件"或"先写文件再上传"的步骤）。
+- 同步更新 docstring、`--image` help 与相关子 skill 文档的 base64 说明。
+
+### 影响文件
+- `scripts/comfyui_api.py` — 新增 base64 输入、字节归一化+统一上传重构、帮助文本与 docstring
+- `SKILL.md` — 调用示例与 `--image/--video` 的 base64 取值说明
+- `skills/image-to-image/SKILL.md` — `--image` 支持 base64
+- `skills/image-to-video/SKILL.md` — `--image` 支持 base64
+- `skills/reference-to-video/SKILL.md` — `--image` 支持 base64
+- `CHANGELOG.md` — 本条目
+
+---
+
 ## [v1.3.1] - 2026-08-28 14:18:19
 
 **更新作者**: yiping zhang

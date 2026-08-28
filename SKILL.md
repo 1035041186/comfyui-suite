@@ -105,7 +105,7 @@ python3 scripts/comfyui_api.py <类型> \
     --root <会话工作根> \
     --prompt "<标准化后的正向提示词>" \
     --negative "<负向提示词>" \
-    [--image <本地图片>] [--video <参考视频>] \
+    [--image <本地图片或base64>] [--video <参考视频>] \
     [--seed N] [--width W --height H] [--steps N] [--cfg C] [--denoise D] \
     [--checkpoint <模型名>] [--lora <NODE:文件名>] [--lora-strength-model 1.2 --lora-strength-clip 0.9] \
     [--workflow <模板路径>] [--set NODE.INPUT.FIELD=VALUE]
@@ -125,6 +125,10 @@ python3 scripts/comfyui_api.py <类型> \
 - `--lora <NODE:文件名>` → `LoraLoader.lora_name`；`--lora-strength-model/clip` → 对应权重；
 - `--width/--height/--frames` → 空 latent 节点；`--image/--video` → 上传后文件名；
 - `--set NODE.FIELD=VALUE` → 精确覆盖任意节点输入（如 `5.inputs.cfg=5.5`）。
+
+> **`--image`/`--video` 的取值**：支持**本地文件路径**或**base64**（`data:image/...;base64,` 或
+> `base64:` 前缀）。脚本对 base64 自动解码为字节后直接上传（**不落盘**），也兼容原文件路径。
+> 用于"粘贴到会话里的图"时，可直接把该图的 base64 传给 `--image`，无需先落盘成文件。
 
 - 先 `--dry-run` 校验最终 JSON（能正确注入、排除错误时使用）；
 - 脚本自动上传图片 → 提交 → 轮询 → 下载结果到 `outputs/`，stdout 输出含 `local_path`；

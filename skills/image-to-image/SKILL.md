@@ -9,7 +9,9 @@ description: 通过 ComfyUI API 图生图（含图文一起生图）：用户提
 
 ## 流程
 
-1. **确认输入图**：必须是 agent 可访问的本地路径；URL 先下载。向用户确认
+1. **确认输入图**：必须是 agent 可访问的本地路径；URL 先下载；也可直接给 base64
+   （`data:image/...;base64,` 或 `base64:` 前缀，脚本自动解码并上传、**不落盘**）。
+   向用户确认
    "保留什么、改变什么"。
 2. **提示词标准化**：读取 `prompt-guides/image-prompt-guide.md`（末尾有图生图专节）。
    提示词聚焦"目标状态"，保留构图时重申关键构图元素。
@@ -34,7 +36,7 @@ python3 scripts/comfyui_api.py image-to-image \
 
 | 参数 | 说明 |
 |---|---|
-| `--image` | 输入图片本地路径（**必填**） |
+| `--image` | 输入图片：本地路径 或 base64（`data:...base64,`/`base64:` 前缀）（**必填**） |
 | `--denoise` | 重绘幅度 0–1，默认 0.6；越低越贴近原图 |
 | `--prompt` | 目标画面描述；留空则仅按噪声重绘（不推荐） |
 | `--seed` | 调参对比时固定 seed，只变 denoise |
