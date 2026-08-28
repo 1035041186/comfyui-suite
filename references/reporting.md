@@ -8,9 +8,17 @@
 
 ## 报告结构
 
-按此组织，描述自然、参数精确；语气可灵活，但**调用链 + 参数 + 结果三块必须齐全**：
+按此组织，描述自然、参数精确；语气可灵活，但**调用序列 + 调用链 + 参数 + 结果四块必须齐全**：
 
 ```
+【调用序列】（按实际执行顺序列出用过的子 skill / 命令，含先后）
+> 1. 判断类型 → 路由（本次用 /comfyui-suite 总入口，或直接子 skill）
+> 2. prompt-optimizer（优化提示词；若用户要求"就用原话"则跳过）
+> 3. list（看可用模板）+ info（查服务端真实模型）
+> 4. validate（确认模板/模型匹配）
+> 5. <生成子 skill 命令>（真正生成）
+> 6. 交付报告（本文件）
+
 【调用链】类型 → 工作流 → 模型
 > 判定：为什么路由到这个类型（输入素材 + 用户意图）
 > 工作流：default_sd15_base（SD 整包）/ krea2（Krea2 分体）/ ...；默认 or --workflow 显式
@@ -28,6 +36,15 @@ python3 scripts/comfyui_api.py <类型> --prompt "..." --seed N --width W --heig
 > 校验：validate 是否通过（模型名/节点匹配）｜失败原因
 ```
 
+### 调用序列写法说明
+
+- 按**实际发生顺序**列，**有先后的编号**，不要只罗列用过的；即使某个可选步骤被跳过
+  （如 prompt-optimizer 被跳过），也要标注（如"（跳过：用户要求用原话）"），反映真实路径；
+- 目的是让用户**看到 agent 走没走完整流程**：是否先查 `info`/`list`、是否 `validate`、
+  是否按顺序路由→优化→生成；
+- 若内部用 `--set`/`--lora`/`--checkpoint` 等做了额外参数调整，也在对应步骤里标注；
+- 若中途出错回退（如某模板 validate 失败后换模板），也要在序列里说明。
+
 ## 要点
 
 - 调用链与参数**必须写具体值**（模型名、seed、尺寸、lora），这是判断"用没用对"的依据；
@@ -41,6 +58,14 @@ python3 scripts/comfyui_api.py <类型> --prompt "..." --seed N --width W --heig
 
 > 以下是一个"文生图、SD 写实、换了模型"的完整报告示例，展示如何把调用路径与参数写成
 > 可读又不失精确的说明。
+
+【调用序列】
+> 1. /comfyui-suite 总入口：判定该为「文生图」（用户只有文字、无图片）。
+> 2. prompt-optimizer：把"写实人像"口语描述优化为英文正向+负向提示词。
+> 3. list + info：确认 text-to-image 有 default_sd15_base / krea2 两套模板，并查服务端真实模型。
+> 4. validate --type text-to-image：确认模板节点、模型名存在。
+> 5. text-to-image 生成（见下方实际命令），用 --checkpoint 换成写实模型。
+> 6. 本交付报告。
 
 【调用链】文生图 → SD 整包（default_sd15_base）→ 模型 majicmixRealistic_v7
 
