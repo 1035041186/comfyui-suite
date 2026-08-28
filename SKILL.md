@@ -167,7 +167,9 @@ python3 scripts/comfyui_api.py <类型> \
 - 调用序列 + 调用链 + 参数 + 结果四块必须齐全；
 - 调用序列按**实际发生顺序**编号列出（含跳过的步骤，如 prompt-optimizer 被跳过要标注）；
 - 调用链与参数写具体值（模型名、seed、尺寸、lora），这是判断"用没用对"的依据；
-- 结果里用 inline code 引用生成文件的路径（`outputs/<类型>/<时间戳>_<名>`）；
+- 结果里用 inline code 引用生成文件的路径（`outputs/<类型>/<时间戳>_<名>`）告诉用户文件已存放；
+- 结果里还要给出预览：用脚本输出的 `preview_url`（host/port 从 `config/comfyui.yaml` 读取，与服务地址一致）
+  对图片用 `![生成图](<preview_url>)` 内联展示，对视频/GIF 放链接（详见 `references/reporting.md`）；
 - 详细格式与完整示例见 **`references/reporting.md`**（交付前按需参考）。
 
 ### 失败排查（第 5 步附）

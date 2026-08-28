@@ -4,6 +4,29 @@
 
 ---
 
+## [v1.5.0] - 2026-08-28 23:35:58
+
+**更新作者**: yiping zhang
+**更新类型**: 需求新增
+
+### 更新内容
+- 新增交付报告内联预览：生成命令的结果 JSON 为每个产物新增 `preview_url`（`http://<host>:<port>/view?filename=...&subfolder=...&type=output`），host/port/protocol 由脚本从 `config/comfyui.yaml` 动态读取（含环境变量与 `--server` 覆盖），与服务地址保持一致，不再硬编码导致地址漂移。
+- 交付报告规范与各子 skill 更新：图片产物用 `![生成图](<preview_url>)` 内联展示，视频/GIF 用链接；同时用 inline code 引用本地文件路径（`outputs/<类型>/<时间戳>_<名>`）告知文件已存放的位置。
+
+### 影响文件
+- `scripts/comfyui_api.py` — 新增 `view_url()`，并在 `cmd_run` 结果 JSON 为每个产物注入 `preview_url`
+- `references/reporting.md` — 交付报告加入预览图约定、示例与注意事项
+- `SKILL.md` — 第 5 步交付报告补充预览约定
+- `skills/text-to-image/SKILL.md` — 交付步骤说明预览（`![...]`）与本地路径
+- `skills/image-to-image/SKILL.md` — 同上
+- `skills/text-to-video/SKILL.md` — 交付步骤说明预览（视频用链接）与本地路径
+- `skills/image-to-video/SKILL.md` — 同上
+- `skills/reference-to-video/SKILL.md` — 同上
+- `workflows/image-to-image/default_img2img_sdx.json` — 更新 ckpt 模型名、正/负向提示词与 VAE 接线
+- `CHANGELOG.md` — 本条目
+
+---
+
 ## [v1.4.4] - 2026-08-28 18:54:28
 
 **更新作者**: yiping zhang

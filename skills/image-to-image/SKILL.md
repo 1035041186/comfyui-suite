@@ -30,7 +30,9 @@ python3 scripts/comfyui_api.py image-to-image \
 ```
 
 5. **交付**：按 `references/reporting.md` 的交付报告规范汇报——说清**调用序列**（用了哪些子 skill、顺序）
-   与调用链（类型→工作流→模型）、关键参数（denoise/seed/尺寸）与实际命令，`downloaded` 字段即结果路径。
+   与调用链（类型→工作流→模型）、关键参数（denoise/seed/尺寸）与实际命令。结果用两条并给出：
+   `preview_url`（host/port 从 `config/comfyui.yaml` 读取，与服务地址一致）用 `![生成图](<preview_url>)` 内联展示；
+   `downloaded`/`local_path` 即本地图片路径，用 inline code 引用告诉用户文件存放位置。
 
 ## 参数要点
 

@@ -417,6 +417,23 @@ def download_file(cfg, meta, out_dir):
     return path
 
 
+def view_url(cfg, meta):
+    """构造 ComfyUI /view 的 HTTP 预览 URL，用于交付报告中内联展示产物。
+
+    一致性：host/port/protocol 一律取自 config（含环境变量与 --server 覆盖），
+    与请求所用的服务地址完全一致，避免硬编码导致的预览 404 或地址漂移。
+    filename/subfolder/type 使用 ComfyUI history 返回的原始元数据
+    （勿用本地下载名——它带时间戳前缀，服务端 /view 不认识）。
+    图片文件可在 Markdown 里用 ``![alt](URL)`` 内联显示；视频/GIF 建议直接用链接。
+    """
+    params = urllib.parse.urlencode({
+        "filename": meta["filename"],
+        "subfolder": meta.get("subfolder", ""),
+        "type": meta.get("type", "output"),
+    })
+    return base_url(cfg) + "/view?" + params
+
+
 # ---------------------------------------------------------------- 工作流渲染
 
 _PLACEHOLDER = re.compile(r'"\{\{\s*([A-Z0-9_]+)\s*\}\}"|\{\{\s*([A-Z0-9_]+)\s*\}\}')
@@ -968,6 +985,9 @@ def cmd_run(args, cfg):
     downloaded, meta_list = [], []
     for meta in files:
         item = {k: meta[k] for k in ("filename", "subfolder", "type", "_kind") if k in meta}
+        # 预览 URL：host/port 从 config 动态读取，与服务地址保持一致；
+        # 用于交付报告中把产物内联展示成图（图片）或直接链接（视频/GIF）。
+        item["preview_url"] = view_url(cfg, meta)
         if cfg["output"].get("auto_download", True) and not args.no_download:
             try:
                 item["local_path"] = download_file(cfg, meta, out_dir)

@@ -27,7 +27,9 @@ python3 scripts/comfyui_api.py text-to-video \
 ```
 
 4. **交付**：按 `references/reporting.md` 的交付报告规范汇报——说清**调用序列**（用了哪些子 skill、顺序）
-   与调用链（类型→工作流→模型）、关键参数（frames/fps/尺寸）；`downloaded` 字段为结果路径。视频任务耗时长，必要时调大
+   与调用链（类型→工作流→模型）、关键参数（frames/fps/尺寸）。结果用两条并给出：`preview_url`
+   （host/port 从 `config/comfyui.yaml` 读取，与服务地址一致；视频不能内联成 `<img>`，直接放链接即可）；
+   `downloaded`/`local_path` 即本地结果路径，用 inline code 引用告诉用户文件存放位置。视频任务耗时长，必要时调大
    `config/comfyui.yaml` 的 `timeouts.poll_max`（默认 1800s）。
 
 ## 参数要点

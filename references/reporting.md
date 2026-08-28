@@ -32,9 +32,24 @@
 python3 scripts/comfyui_api.py <类型> --prompt "..." --seed N --width W --height H ...
 
 【结果】
-> 文件路径：`outputs/text-to-image/20260828_1143_t2i_xxx.png`（inline code 引用）
+> 预览（图片用 Markdown 内联显示，URL 直接取自脚本输出里的 `preview_url`）：
+>   ![生成图](<preview_url>)
+>   非图片产物（视频/GIF）不内联，改为直接链接：<preview_url>
+> 文件路径：`outputs/text-to-image/20260828_1143_t2i_xxx.png`（inline code 引用，可点击打开）
 > 校验：validate 是否通过（模型名/节点匹配）｜失败原因
 ```
+
+### 预览图（`preview_url`）约定
+
+生成命令的结果 JSON 里，每个产物都带一个 `preview_url`，形如
+`http://<host>:<port>/view?filename=<原文件名>&subfolder=<子目录>&type=output`。
+
+- **host/port/protocol 由脚本从 `config/comfyui.yaml` 动态读取**（环境变量与 `--server` 覆盖后与请求所用
+  地址一致），**不要**在报告里写死 `127.0.0.1:8188`——直接粘贴 `preview_url` 即可，保证和服务地址一致。
+- `filename/subfolder/type` 是 ComfyUI history 的**原始元数据**；本地下载名带时间戳前缀
+  （`<时间戳>_<原文件名>`），**只能**用作上面的本地路径 inline code，**不能**放进 `/view` URL，否则 404。
+- 浏览器需能访问到该 host（用户查看端与服务同机/同网段）；图片在 Markdown 里用 `![alt](URL)` 内联显示，
+  视频/GIF 建议直接放链接。
 
 ### 调用序列写法说明
 
@@ -90,6 +105,8 @@ python3 scripts/comfyui_api.py text-to-image \
 ```
 
 【结果】
-> 文件：`outputs/text-to-image/20260828_1143_t2i_84f1a2.webp`（可通过 `list` + `info` 反查该模板的模型栈）
+> 预览：![生成图](http://10.0.0.1:8188/view?filename=84f1a2.webp&subfolder=&type=output)
+>   （`preview_url` 由脚本从 `config/comfyui.yaml` 读取 host/port 生成；浏览器需能访问 10.0.0.1:8188）
+> 文件：`outputs/text-to-image/20260828_1143_t2i_84f1a2.webp`（inline code 引用，可点击打开）
 > 校验：`validate --type text-to-image --checkpoint majicmixRealistic_v7.safetensors`
 > 通过（模型名存在于服务端、节点已安装）。
