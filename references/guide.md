@@ -38,6 +38,10 @@ comfyui-suite/
 │   ├── image-prompt-guide.md       # 图片（tag 式）
 │   ├── video-prompt-guide.md       # 视频：H3 消化版 + 传统写法
 │   └── h3-video-prompt-protocol.md # H3 音画一体协议完整规范（权威参考）
+├── references/                     # 按需加载的参考文档
+│   ├── guide.md                    # 使用/安装/扩展/配置分层（本文件）
+│   ├── models.md                   # 模型目录（含 LoRA、用途、更换流程）
+│   └── reporting.md                # 交付报告规范与示例
 └── skills/<类型>/SKILL.md          # 子 skill（单类型精细控制）
 ```
 

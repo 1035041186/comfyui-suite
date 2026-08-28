@@ -24,7 +24,7 @@ python3 scripts/comfyui_api.py image-to-video \
     --width 1280 --height 720 --frames 49 --fps 16 --steps 30
 ```
 
-4. **交付**：按总入口 `SKILL.md` 的「交付报告」规范汇报——说清调用链（类型→工作流→模型）、
+4. **交付**：按 `references/reporting.md` 的交付报告规范汇报——说清调用链（类型→工作流→模型）、
    关键参数（frames/fps/尺寸）与实际命令，`downloaded` 字段即结果路径。
 
 ## 参数要点

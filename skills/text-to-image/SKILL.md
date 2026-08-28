@@ -22,7 +22,7 @@ python3 scripts/comfyui_api.py text-to-image \
     --width 1024 --height 1024 --steps 20 --seed 12345
 ```
 
-4. **交付**：按总入口 `SKILL.md` 的「交付报告」规范汇报——说清调用链（类型→工作流→模型）、
+4. **交付**：按 `references/reporting.md` 的交付报告规范汇报——说清调用链（类型→工作流→模型）、
    关键参数（seed/尺寸/steps/cfg）与实际命令；`downloaded` 字段即本地图片路径（默认 `outputs/`）。
 
 ## 参数要点

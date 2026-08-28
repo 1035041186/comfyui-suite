@@ -4,7 +4,24 @@
 
 ---
 
-## [v1.1.2] - 2026-08-28 10:55:00
+## [v1.1.3] - 2026-08-28 11:14:09
+
+**更新作者**: yiping zhang
+**更新类型**: 需求调整
+
+### 更新内容
+- 交付报告详细规范与完整示例从总入口下沉到 `references/reporting.md`，根 SKILL.md 第 5 步精简为概述并指向该文件。
+- 5 个生成类子 skill 交付引用改为指向 `references/reporting.md`。
+- 修正 `references/guide.md` 目录结构（补 references/ 下各文档），根 SKILL.md 从 188 → 131 行，更符合渐进式披露。
+
+### 影响文件
+- `SKILL.md` — 第 5 步精简，删除示例段
+- `references/reporting.md` — 交付报告规范+示例（新增）
+- `references/guide.md` — 目录结构更新
+- `skills/*/SKILL.md` — 交付引用改指向 reporting.md
+- `CHANGELOG.md` — 本条目
+
+---
 
 **更新作者**: yiping zhang
 **更新类型**: 需求调整
