@@ -4,7 +4,38 @@
 
 ---
 
-## [v1.1.6] - 2026-08-28 11:43:06
+## [v1.2.1] - 2026-08-28 11:52:10
+
+**更新作者**: yiping zhang
+**更新类型**: 需求调整
+
+### 更新内容
+- 时间戳范围明确限定：**仅 ComfyUI API 生成的产物**（图片/视频/音频/gif 等）文件名加时间戳前缀；其他文件（workflow/config/文档/脚本等）不受影响。
+- 产物目录改为按「生成类型」分区（去掉目录级时间戳，避免与文件名时间戳重复），文件名统一 `<YYYYMMDD_HHMMSS>_<原名>`。
+
+### 影响文件
+- `scripts/comfyui_api.py` — download_file 内文件名时间戳；out_dir 去掉目录级时间戳、保留类型分区
+- `references/reporting.md` — 路径示例同步
+- `CHANGELOG.md` — 本条目
+
+---
+
+**更新作者**: yiping zhang
+**更新类型**: 需求新增（功能增强）
+
+### 更新内容
+- 输出目录改为以「当前工作目录 cwd」为基准（不再拼到 skill 根），更符合直觉。
+- 结果目录按「生成类型」分区：`<cwd>/<output.dir>/<类型>/`；**每个 API 产物文件名统一加时间戳前缀** `<YYYYMMDD_HHMMSS>_<原名>`（图片/视频/音频等所有生成文件），避免覆盖、便于回溯。
+- `--output` 绝对路径时直接使用，但文件名仍带时间戳（download_file 统一处理）。
+- config/comfyui.yaml 的 output.dir 注释与帮助文本同步；交付报告示例更新为「类型目录 + 时间戳文件名」形态。
+
+### 影响文件
+- `scripts/comfyui_api.py` — out_dir 解析改为 cwd 基准 + 类型分区 + 产物文件名时间戳 + --output help
+- `config/comfyui.yaml` — output.dir 注释说明
+- `references/reporting.md` — 结果路径示例更新
+- `CHANGELOG.md` — 本条目
+
+---
 
 **更新作者**: yiping zhang
 **更新类型**: BUG修复

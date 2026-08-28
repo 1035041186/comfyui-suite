@@ -20,5 +20,6 @@ timeouts:
   poll_max: 1800          # 最长等待时间（秒），视频任务可调大
 
 output:
-  dir: ./outputs          # 生成结果下载目录（相对 skill 根目录或绝对路径）
+  dir: ./outputs          # 结果目录（相对当前工作目录 cwd；最终为 <cwd>/<dir>/<生成类型>/）
+                          # 若为绝对路径则完全按该路径，不追加类型子目录
   auto_download: true     # 任务完成后自动从 /view 下载结果文件

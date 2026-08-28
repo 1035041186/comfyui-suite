@@ -32,7 +32,7 @@
 python3 scripts/comfyui_api.py <类型> --prompt "..." --seed N --width W --height H ...
 
 【结果】
-> 文件路径：`outputs/t2i_xxx.png`（正文引用即可；bash 产物不可点击，见下方说明）
+> 文件路径：`outputs/text-to-image/20260828_1143_t2i_xxx.png`（正文引用即可；bash 产物不可点击，见下方说明）
 >   - 图片：交付前用 `read_image` 读入 → **直接显示到对话**（已验证可行）
 >   - 视频/动图：read_image 不支持，作为正文引用文字说明 + 文件路径
 > 校验：validate 是否通过（模型名/节点匹配）｜失败原因
@@ -104,10 +104,10 @@ python3 scripts/comfyui_api.py text-to-image \
 ```
 
 【结果】
-> 文件：`outputs/t2i_84f1a2.webp`（可通过 `list` + `info` 反查该模板的模型栈）
->   图片显示：已用 `read_image` 读入 `outputs/t2i_84f1a2.webp` → 直接显示在对话。
+> 文件：`outputs/text-to-image/20260828_1143_t2i_84f1a2.webp`（可通过 `list` + `info` 反查该模板的模型栈）
+>   图片显示：已用 `read_image` 读入该文件 → 直接显示在对话。
 > 校验：`validate --type text-to-image --checkpoint majicmixRealistic_v7.safetensors`
 > 通过（模型名存在于服务端、节点已安装）。
 
 > 若结果是**视频**（mp4/webp）：read_image 不支持，改为正文 inline code 引用
-> `outputs/xxx.mp4` + 文字说明（无法预览/点击）。
+> `outputs/text-to-video/20260828_1143_xxx.mp4` + 文字说明（无法预览/点击）。

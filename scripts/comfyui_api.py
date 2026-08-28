@@ -262,7 +262,10 @@ def download_file(cfg, meta, out_dir):
     })
     _, raw = _request(cfg, "GET", "/view?" + params, timeout=300)
     os.makedirs(out_dir, exist_ok=True)
-    path = os.path.join(out_dir, meta["filename"])
+    # 所有生成文件统一带时间戳前缀，避免覆盖、便于按时间回溯
+    stamp = time.strftime("%Y%m%d_%H%M%S")
+    fname = "{}_{}".format(stamp, meta["filename"])
+    path = os.path.join(out_dir, fname)
     with open(path, "wb") as f:
         f.write(raw)
     return path
@@ -787,9 +790,19 @@ def cmd_run(args, cfg):
 
     files = collect_outputs(entry)
     print("[4/4] 完成，输出 {} 个文件".format(len(files)), file=sys.stderr)
+    # 输出目录：以当前工作目录(cwd)为基础，而非 skill 根
+    #  - --output 绝对路径：直接用，不追加类型/时间戳子目录
+    #  - 否则：<cwd>/<config.dir 或 ./outputs>/<类型>/<时间戳>/   （按类型+时间戳分区，避免覆盖）
+    # 输出目录：以当前工作目录(cwd)为基础，而非 skill 根
+    #  - --output 绝对路径：直接用，不追加类型子目录
+    #  - 否则：<cwd>/<config.dir 或 ./outputs>/<类型>/   （按类型分区）
+    #    ※ 每个文件在 download_file 里已统一加时间戳前缀（含 --output 绝对路径情况）
     out_dir = args.output or cfg["output"].get("dir", "./outputs")
-    if not os.path.isabs(out_dir):
-        out_dir = os.path.join(SKILL_ROOT, out_dir)
+    if os.path.isabs(out_dir):
+        pass  # 用户显式指定的绝对路径，保持原样
+    else:
+        base = os.getcwd()
+        out_dir = os.path.join(base, out_dir, args.command)  # args.command 即生成类型
     downloaded, meta_list = [], []
     for meta in files:
         item = {k: meta[k] for k in ("filename", "subfolder", "type", "_kind") if k in meta}
@@ -996,7 +1009,7 @@ def add_gen_args(sp):
     sp.add_argument("--workflow", help="指定 workflow JSON 路径（默认取 workflows/<类型>/default*.json）")
     sp.add_argument("--set", action="append", metavar="NODE.FIELD=VALUE",
                     help="按字段覆盖任意节点输入，如 5.inputs.cfg=5.5；也可用 FIELD=VALUE 匹配同名输入")
-    sp.add_argument("--output", help="结果下载目录（覆盖配置 output.dir）")
+    sp.add_argument("--output", help="结果目录；绝对路径用该路径（不追加类型/时间戳），相对路径为 <cwd>/<该路径>/<类型>/<时间戳>/")
     sp.add_argument("--no-download", action="store_true", help="只生成不下载")
     sp.add_argument("--dry-run", action="store_true", help="只打印最终提交的 prompt JSON，不执行")
 
