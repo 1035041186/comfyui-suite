@@ -123,9 +123,7 @@ python3 scripts/comfyui_api.py <类型> \
 - 调用序列 + 调用链 + 参数 + 结果四块必须齐全；
 - 调用序列按**实际发生顺序**编号列出（含跳过的步骤，如 prompt-optimizer 被跳过要标注）；
 - 调用链与参数写具体值（模型名、seed、尺寸、lora），这是判断"用没用对"的依据；
-- **结果文件要可查看**：图片用 `read_image` 读入直接显示到对话；视频/动图不支持预览，
-  用 inline code 引用路径 + 文字说明。**不要依赖 markdown 图片语法或"inline code 可点击"**
-  （DSH 只对 write/edit 文本产物记录为可点击，bash 产物无效）；
+- 结果里用 inline code 引用生成文件的路径（`outputs/<类型>/<时间戳>_<名>`）；
 - 详细格式与完整示例见 **`references/reporting.md`**（交付前按需参考）。
 
 ### 失败排查（第 5 步附）

@@ -600,7 +600,7 @@ def apply_field_overrides(graph, args):
                 written.append((nid, "strength_clip", args.lora_strength_clip))
 
     # ---- 空 latent 尺寸 / 帧数 ----
-    if args.width or args.height or args.frames:
+    if args.width or args.height or args.frames or args.batch:
         for nid, node in graph.items():
             if not isinstance(node, dict):
                 continue
@@ -619,6 +619,10 @@ def apply_field_overrides(graph, args):
                 if key:
                     ins[key] = args.frames
                     written.append((nid, key, args.frames))
+            if args.batch:
+                if "batch_size" in ins:
+                    ins["batch_size"] = args.batch
+                    written.append((nid, "batch_size", args.batch))
 
     # ---- 输出前缀 ----
     for nid, node in graph.items():
@@ -1005,6 +1009,7 @@ def add_gen_args(sp):
                          "如 --lora 10:svi-shot.safetensors --lora strength=1.2")
     sp.add_argument("--lora-strength-model", type=float, help="LoRA 模型权重 strength_model")
     sp.add_argument("--lora-strength-clip", type=float, help="LoRA CLIP 权重 strength_clip")
+    sp.add_argument("--batch", type=int, help="一次生成的张数（写 Empty*Latent* 的 batch_size，默认取模板）")
     sp.add_argument("--prefix", help="输出文件名前缀")
     sp.add_argument("--workflow", help="指定 workflow JSON 路径（默认取 workflows/<类型>/default*.json）")
     sp.add_argument("--set", action="append", metavar="NODE.FIELD=VALUE",

@@ -32,23 +32,9 @@
 python3 scripts/comfyui_api.py <类型> --prompt "..." --seed N --width W --height H ...
 
 【结果】
-> 文件路径：`outputs/text-to-image/20260828_1143_t2i_xxx.png`（正文引用即可；bash 产物不可点击，见下方说明）
->   - 图片：交付前用 `read_image` 读入 → **直接显示到对话**（已验证可行）
->   - 视频/动图：read_image 不支持，作为正文引用文字说明 + 文件路径
+> 文件路径：`outputs/text-to-image/20260828_1143_t2i_xxx.png`（inline code 引用）
 > 校验：validate 是否通过（模型名/节点匹配）｜失败原因
-
-**结果呈现规则（写清文件 + 便于在对话查看）：**
-1. **图片**（png/jpg）：交付前调用 `read_image `<文件绝对路径>`读入，让图片直接显示到对话。
-   这是 DSH 里让图片可见的可靠方式；**不要依赖 markdown 图片语法或"inline code 可点击"**——
-   DSH 只对 `write`/`edit` **文本**产物记录为可点击，bash 下载的图片不在其列，点了没反应。
-2. **视频/动图**（mp4/webp）：`read_image` 不支持，只能作为正文用 inline code 引用
-   文件路径 + 文字说明（无法预览，也无法点击打开）。
-3. 多个文件逐个列出；图片逐个 `read_image`，视频/文字引用单独写。
 ```
-
-> ⚠️ 关于"可点击打开"：DSH 只会把 `write`/`edit` 文本工具改过的文件记录为可点击产物；
-> `comfyui_api.py` 经 bash 生成的图片/视频**不会被记录为可点击**。所以图片用 `read_image`
-> 显示到对话，视频就只能看文字引用。这是 DSH 产物追踪的机制限制，不是本 skill 的问题。
 
 ### 调用序列写法说明
 
@@ -105,9 +91,5 @@ python3 scripts/comfyui_api.py text-to-image \
 
 【结果】
 > 文件：`outputs/text-to-image/20260828_1143_t2i_84f1a2.webp`（可通过 `list` + `info` 反查该模板的模型栈）
->   图片显示：已用 `read_image` 读入该文件 → 直接显示在对话。
 > 校验：`validate --type text-to-image --checkpoint majicmixRealistic_v7.safetensors`
 > 通过（模型名存在于服务端、节点已安装）。
-
-> 若结果是**视频**（mp4/webp）：read_image 不支持，改为正文 inline code 引用
-> `outputs/text-to-video/20260828_1143_xxx.mp4` + 文字说明（无法预览/点击）。
