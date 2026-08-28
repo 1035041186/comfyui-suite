@@ -32,8 +32,17 @@
 python3 scripts/comfyui_api.py <类型> --prompt "..." --seed N --width W --height H ...
 
 【结果】
-> 文件：<本地路径>（outputs/ 下）
+> 文件：`outputs/t2i_xxx.png`（inline code：**可点击链接**，视频/图片都认）
+>   - 图片：另加 markdown 图片语法 `![结果](outputs/t2i_xxx.png)` 尽量在对话内预览
+>   - 视频/动图：图片预览不生效，但 inline code 链接可点击打开
 > 校验：validate 是否通过（模型名/节点匹配）｜失败原因
+
+**结果呈现规则（写清文件 + 便于在对话/工作区查看）：**
+1. **必须用 inline code**（`` `路径` ``）引用生成文件——用工具返回的精确路径，或本 turn 内唯
+   一的 basename。这样文件在 Web 里可点击（图片、视频都认）；
+2. **图片**（png/jpg）：额外写一行 `![描述](相对路径)` 以尽量触发对话内预览；路径用相对
+   工作目录、可访问的（如 `outputs/xxx.png`）。视频/动图（mp4/webp）无对话预览，只走链接；
+3. 若生成多个文件，逐个用 inline code 列出，避免只给一个宽泛的目录。
 ```
 
 ### 调用序列写法说明
@@ -91,5 +100,6 @@ python3 scripts/comfyui_api.py text-to-image \
 
 【结果】
 > 文件：`outputs/t2i_84f1a2.webp`（可通过 `list` + `info` 反查该模板的模型栈）
+>   图片预览：![生成结果](outputs/t2i_84f1a2.webp)
 > 校验：`validate --type text-to-image --checkpoint majicmixRealistic_v7.safetensors`
 > 通过（模型名存在于服务端、节点已安装）。
