@@ -254,6 +254,39 @@ def collect_outputs(entry):
     return files
 
 
+def _session_cwd():
+    """稳定解析「会话工作目录」作为输出锚点：
+    优先从 DSH_SESSION_JSONL 解出会话记录的 cwd（真正跟会话走、不随 bash cd 漂移），
+    解析失败才回退到 os.getcwd()。返回可供路径拼接的绝对路径。"""
+    path = os.environ.get("DSH_SESSION_JSONL") or ""
+    if path and os.path.isfile(path):
+        try:
+            import subprocess as _sp
+            raw = _sp.run(["zstd", "-dc", path], capture_output=True, text=True).stdout
+            for line in raw.splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    o = json.loads(line)
+                except Exception:
+                    continue
+                if o.get("type") == "session" and o.get("cwd"):
+                    return o["cwd"]
+        except Exception:
+            pass
+    return os.getcwd()
+
+
+def _makedirs(path):
+    """创建目录；失败（只读/无权限）抛出带明确路径的 RuntimeError，由 main 统一报错定位。
+    不做任何"换路径"试探——只报错，说明稳定输出路径是哪个、为何建不出来。"""
+    try:
+        os.makedirs(path, exist_ok=True)
+    except OSError as e:
+        raise RuntimeError("无法创建输出目录 {}（只读/无权限）：{}。"
+                           "请确认会话工作目录可写，或用 --output 指定可写的绝对路径。".format(path, e))
+
+
 def download_file(cfg, meta, out_dir):
     params = urllib.parse.urlencode({
         "filename": meta["filename"],
@@ -801,26 +834,15 @@ def cmd_run(args, cfg):
     #  - --output 绝对路径：直接用，不追加类型子目录
     # 输出目录：无论相对(基于 cwd)或绝对(--output)路径，都追加 <生成类型>/ 子目录，
     # 再在 download_file 内给文件名加时间戳。保证「按类型分区 + 时间戳文件名」一致。
-    #  - --output 绝对路径：作为产出根，追加 <类型>/ 子目录
-    #  - 否则：<cwd>/<config.dir 或 ./outputs>/<类型>/  （若 cwd 只读会导致下载失败，见 STDOUT 提示）
-    out_dir = args.output or cfg["output"].get("dir", "./outputs")
-    if not os.path.isabs(out_dir):
-        out_dir = os.path.join(os.getcwd(), out_dir)
-    # 统一追加生成类型子目录（图片/视频各自分区，避免混在一起）
-    out_dir = os.path.join(out_dir, args.command)  # args.command 即生成类型
-    # 提前检查产出目录是否可写，避免下载时静默失败
-    if cfg["output"].get("auto_download", True) and not args.no_download:
-        try:
-            os.makedirs(out_dir, exist_ok=True)
-        except OSError as e:
-            print("错误: 产出目录不可写 {}: {}".format(out_dir, e), file=sys.stderr)
-            print("提示: 用 --output <可写绝对路径> 指定产出根（会自动追加 <类型>/ 子目录），"
-                  "或设置环境变量 COMFYUI_OUTPUT_DIR=<可写目录>。", file=sys.stderr)
-            return 3
-        if not os.access(out_dir, os.W_OK):
-            print("错误: 产出目录不可写 {}（只读/无权限）".format(out_dir), file=sys.stderr)
-            print("提示: 用 --output <可写绝对路径> 或 COMFYUI_OUTPUT_DIR 指定可写目录。", file=sys.stderr)
-            return 3
+    # 输出目录：稳定落在「会话工作目录」下的 outputs，按生成类型分区。
+    #  - 默认：<会话工作目录>/outputs/<类型>/   （锚点从 DSH 会话记录解析，跟会话走、不随 bash cd 漂移）
+    #  - --output：作为产出根（相对则基于会话工作目录），仍追加 <类型>/ 子目录
+    # 不做任何"试探换路径"：只写这个位置；若只读/无权则明确报错定位，不引导切换。
+    out_root = args.output or cfg["output"].get("dir", "./outputs")
+    if not os.path.isabs(out_root):
+        out_root = os.path.join(_session_cwd(), out_root)
+    out_dir = os.path.join(out_root, args.command)  # args.command 即生成类型
+    _makedirs(out_dir)  # 不存在则建；建立失败会抛出 OSError（含只读/无权限），交给外层统一报错定位
     downloaded, meta_list = [], []
     for meta in files:
         item = {k: meta[k] for k in ("filename", "subfolder", "type", "_kind") if k in meta}
