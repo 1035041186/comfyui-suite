@@ -41,8 +41,10 @@ python3 scripts/comfyui_api.py text-to-video \
 
 ## 默认模板
 
-`workflows/text-to-video/default_wan_t2v.json`（Wan2.1 T2V 骨架：EmptyHunyuanLatentVideo
-→ KSampler → VAEDecode → SaveAnimatedWEBP）。**模板仅为参考**，实际节点以部署为准。
+`workflows/text-to-video/default_*.json`（你导出的 API JSON）。
+**请用你服务端实际跑通的导出 JSON 替换**：`--prompt` 写入 CLIPTextEncode，
+`--frames/--width/--height` 写入空 latent 节点，`--checkpoint` 写入加载器。
+视频模型节点结构差异大（Wan/HunyuanVideo/H3），务必用对应导出 JSON。
 
 ## 常见问题
 

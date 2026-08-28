@@ -41,10 +41,11 @@ python3 scripts/comfyui_api.py image-to-image \
 
 ## 默认模板
 
-`workflows/image-to-image/default_sdxl_img2img.json`：LoadImage → VAEEncode →
-KSampler(denoise<1) → VAEDecode → SaveImage。
-"图文一起生图"（文+图共同条件）默认即由本流程覆盖；若需 IP-Adapter/ControlNet
-等更强控制，按 `workflows/README.md` 新增模板并用 `--workflow` 指定。
+`workflows/image-to-image/default_*.json`（你导出的 API JSON）。
+**请用你服务端实际跑通的导出 JSON 替换**——`--image` 上传后由脚本写入
+`LoadImage.image`，`--denoise` 写入 KSampler；字段注入器自动识别节点结构。
+"图文一起生图"（文+图共同条件）默认即覆盖；需 IP-Adapter/ControlNet 等可控生成时，
+用含相应节点的导出 JSON，并以 `--workflow` 指定。
 
 ## 常见问题
 

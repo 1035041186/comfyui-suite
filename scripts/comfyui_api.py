@@ -274,7 +274,8 @@ _PLACEHOLDER = re.compile(r'"\{\{\s*([A-Z0-9_]+)\s*\}\}"|\{\{\s*([A-Z0-9_]+)\s*\
 
 # 需转为 JSON 数字的占位符
 NUMERIC_KEYS = {"SEED", "WIDTH", "HEIGHT", "STEPS", "CFG", "DENOISE",
-                "FRAMES", "FPS", "VIDEO_LENGTH"}
+                "FRAMES", "FPS", "VIDEO_LENGTH", "LORA_STRENGTH_MODEL",
+                "LORA_STRENGTH_CLIP"}
 
 # 可由 CLI 覆盖的生成参数 -> (CLI 属性名, _defaults 键)
 # 生成参数的取值优先级：CLI 显式指定 > workflow _defaults > 随机(seed)/None(报错)
@@ -327,8 +328,10 @@ def find_workflow(gen_type, explicit=None):
     candidates = sorted(f for f in os.listdir(folder) if f.endswith(".json"))
     if not candidates:
         raise RuntimeError("{} 目录下没有 workflow JSON，请先按 workflows/README.md 导出".format(folder))
-    default = [f for f in candidates if f.startswith("default")]
-    return os.path.join(folder, default[0] if default else candidates[0])
+    # 默认模板：优先 default_ 开头；没有则取第一个。
+    # 无论是否含 {{}} 均可——字段注入器对"导出 JSON（无占位符）"同样支持。
+    defaults = [f for f in candidates if f.startswith("default")]
+    return os.path.join(folder, defaults[0] if defaults else candidates[0])
 
 
 def render_workflow(template_text, values):
@@ -353,8 +356,22 @@ def build_values(args, cfg, defaults):
         v = getattr(args, attr, None)
         if v is None:
             v = defaults.get(key)
+        # prompt/negative 缺省给空串，保证占位符路径不报缺参；其它字段缺省置空不注入
+        if v is None and key in ("prompt", "negative"):
+            v = ""
         if v is not None:
             values[key.upper()] = v
+    # LoRA 占位符：--lora 支持 "NODE:文件"，取纯文件名注入 {{LORA}}
+    loras = getattr(args, "lora", None)
+    if loras:
+        first = loras[0]
+        fname = first.split(":", 1)[-1].strip() if ":" in first and not first.lower().startswith("strength") else first
+        if not fname.lower().startswith("strength"):
+            values["LORA"] = fname
+    if getattr(args, "lora_strength_model", None) is not None:
+        values["LORA_STRENGTH_MODEL"] = args.lora_strength_model
+    if getattr(args, "lora_strength_clip", None) is not None:
+        values["LORA_STRENGTH_CLIP"] = args.lora_strength_clip
     values["SEED"] = args.seed if args.seed is not None else random.randint(0, 2 ** 31 - 1)
     values["UPLOADED_IMAGE"] = getattr(args, "_uploaded_image", None)
     values["UPLOADED_VIDEO"] = getattr(args, "_uploaded_video", None)
@@ -372,15 +389,31 @@ def build_values(args, cfg, defaults):
 
 def cmd_list(args, cfg):
     print("服务: {}".format(base_url(cfg)))
-    print("可用生成类型与 workflow：")
+    print("可用生成类型与 workflow（`*` 为不传 --workflow 时的默认选中）：")
     for t in KNOWN_TYPES:
         folder = os.path.join(SKILL_ROOT, "workflows", t)
         files = sorted(f for f in os.listdir(folder) if f.endswith(".json")) if os.path.isdir(folder) else []
-        print("  {:<20} {}".format(t, ", ".join(files) if files else "(无，请导出添加)"))
+        if not files:
+            print("  {:<20} (无，请用 ComfyUI「Save (API Format)」导出后放入)".format(t))
+            continue
+        # 默认选中的：default_ 前缀第一个；无 default_ 则第一个
+        default = None
+        for f in files:
+            if f.startswith("default"):
+                default = f
+                break
+        default = default or files[0]
+        annotations = []
+        for f in files:
+            mark = "*" if f == default else " "
+            ph = " (占位符)" if "{{" in open(os.path.join(folder, f), encoding="utf-8").read(4096) else ""
+            annotations.append("{}{}{}".format(mark, f, ph))
+        print("  {:<20} {}".format(t, ", ".join(annotations)))
     extra = [d for d in sorted(os.listdir(os.path.join(SKILL_ROOT, "workflows")))
              if d not in KNOWN_TYPES and os.path.isdir(os.path.join(SKILL_ROOT, "workflows", d))]
     if extra:
         print("  扩展类型: " + ", ".join(extra))
+    print("\n提示: 不传 --workflow 即用 `*` 模板；要换用其它的传 --workflow <文件名>。")
     return 0
 
 
@@ -394,6 +427,289 @@ def cmd_upload(args, cfg):
     name = upload_image(cfg, args.file)
     print(json.dumps({"uploaded_name": name}, ensure_ascii=False))
     return 0
+
+
+def _find_nodes(graph, class_type=None, has_input=None):
+    """按 class_type 或"是否存在某输入字段"定位节点，返回 node_id 列表。"""
+    out = []
+    for nid, node in graph.items():
+        if not isinstance(node, dict):
+            continue
+        if class_type and node.get("class_type") != class_type:
+            continue
+        if has_input and has_input not in (node.get("inputs") or {}):
+            continue
+        out.append(str(nid))
+    return out
+
+
+_SAMPLER_CLASSES = ("KSampler", "KSamplerAdvanced")
+
+
+def _find_sampler(graph):
+    """找一个采样器节点（KSampler 类，优先含 positive/negative 输入的）。"""
+    for nid, node in graph.items():
+        if not isinstance(node, dict):
+            continue
+        if node.get("class_type") in _SAMPLER_CLASSES:
+            return str(nid), node
+    return None, None
+
+
+_H3_VIDEO_NODE = "MiniMaxH3ImageToVideo"
+
+def _is_h3_video(graph):
+    """探测该 graph 是否为 MiniMax-H3 音画视频范式（存在 MiniMaxH3ImageToVideo 节点）。"""
+    return any(isinstance(n, dict) and n.get("class_type") == _H3_VIDEO_NODE
+               for n in graph.values())
+
+
+def _find_nodes_by_class(graph, *class_types):
+    """按 class_type 集合找节点，返回 [node_id]。"""
+    return [str(nid) for nid, node in graph.items()
+            if isinstance(node, dict) and node.get("class_type") in class_types]
+
+
+def _resolve_ref(graph, ref):
+    """把一个 [node_id, output_index] 引用解析为 (node_id, node)，非列表或非法则 (None, None)。"""
+    if isinstance(ref, list) and len(ref) >= 1:
+        nid = str(ref[0])
+        node = graph.get(nid)
+        if isinstance(node, dict):
+            return nid, node
+    return None, None
+
+
+def apply_field_overrides(graph, args):
+    """在已渲染的 graph 上做字段级语义注入（供导出 JSON 直接使用，无需 {{}}）。
+    按范式分两条路：SD/通用（KSampler 定位）与 MiniMax-H3 视频（专属节点定位）。
+
+    == SD / 通用范式 ==
+    - prompt/negative -> 沿 KSampler.positive/negative 追溯 CLIPTextEncode.text
+    - seed/steps/cfg/denoise -> KSampler 对应输入
+    - 图片/视频上传名 -> LoadImage.image / VHS_LoadVideo.video
+    - checkpoint -> CheckpointLoaderSimple.ckpt_name / UNETLoader.unet_name
+    - width/height/frames -> 各类 Empty*Latent* 空 latent 节点
+    - prefix -> SaveImage.filename_prefix / SaveAnimatedWEBP.filename_prefix
+
+    == MiniMax-H3 视频范式（存在 MiniMaxH3ImageToVideo 节点）==
+    - prompt -> MiniMaxH3ImageToVideo.prompt
+    - seed -> RandomNoise.noise_seed
+    - width/height -> ResolutionSelector 或 MiniMaxH3ImageToVideo.width/height
+    - frames -> 帧数表达式链（PrimitiveFloat 值）
+    - lora -> LoraLoaderModelOnly.lora_name
+
+    返回 (graph, 已写入的字段列表)。"""
+    written = []
+
+    def _set(node_ids, input_key, value):
+        if value is None:
+            return
+        for nid in node_ids:
+            node = graph.setdefault(nid, {})
+            inputs = node.setdefault("inputs", {})
+            inputs[input_key] = value
+            written.append((nid, input_key, value))
+
+    # ================= 范式探测 =================
+    if _is_h3_video(graph):
+        return _apply_h3_overrides(graph, args, written)
+
+    # ================= SD / 通用范式 =================
+    sid, sampler = _find_sampler(graph)
+    if sampler:
+        for ref_attr, prompt_attr in (("positive", "prompt"), ("negative", "negative")):
+            ref = (sampler.get("inputs") or {}).get(ref_attr)
+            nid, node = _resolve_ref(graph, ref)
+            val = getattr(args, prompt_attr, None)
+            if val is not None and node and node.get("class_type") == "CLIPTextEncode":
+                _set([nid], "text", val)
+
+    # ---- 采样器参数：seed/steps/cfg/denoise ----
+    if sampler and sid:
+        for attr, field in (("seed", "seed"), ("steps", "steps"),
+                            ("cfg", "cfg"), ("denoise", "denoise")):
+            v = getattr(args, attr, None)
+            if v is not None:
+                _set([sid], field, v)
+
+    # ---- 上传资源 ----
+    if getattr(args, "_uploaded_image", None):
+        _set(_find_nodes(graph, class_type="LoadImage"), "image", args._uploaded_image)
+    if getattr(args, "_uploaded_video", None):
+        _set(_find_nodes(graph, class_type="VHS_LoadVideo"), "video", args._uploaded_video)
+
+    # ---- 模型：checkpoint -> 整包 或 UNET 分体 ----
+    if args.checkpoint:
+        ptr = False
+        for nid, node in graph.items():
+            if not isinstance(node, dict):
+                continue
+            ins = node.get("inputs") or {}
+            if node.get("class_type") == "CheckpointLoaderSimple" and "ckpt_name" in ins:
+                ins["ckpt_name"] = args.checkpoint
+                written.append((nid, "ckpt_name", args.checkpoint))
+                ptr = True
+            elif node.get("class_type") == "UNETLoader" and "unet_name" in ins:
+                ins["unet_name"] = args.checkpoint
+                written.append((nid, "unet_name", args.checkpoint))
+                ptr = True
+        if not ptr:
+            print("[warn] 未找到可写入 checkpoint 的节点（既无 CheckpointLoaderSimple 也无 UNETLoader）",
+                  file=sys.stderr)
+
+    # ---- LoRA：--lora NODE:文件 / 直接文件名 -> LoraLoader.lora_name ----
+    lora_nodes = [nid for nid, node in graph.items()
+                  if isinstance(node, dict) and node.get("class_type") == "LoraLoader"]
+    if getattr(args, "lora", None):
+        present = len(lora_nodes)
+        for i, spec in enumerate(args.lora):
+            # 支持 "NODE:文件名" 指定节点；否则按 LoraLoader 顺序（缺省取第一个）
+            target_files = lora_nodes
+            if ":" in spec and not spec.startswith("strength"):
+                node_id, _, fname = spec.partition(":")
+                node_id = node_id.strip()
+                if node_id in graph:
+                    target_files = [node_id]
+                else:
+                    print("[warn] --lora 指定的节点 '{}' 不存在，回退到第一个 LoraLoader".format(node_id), file=sys.stderr)
+                    fname = spec
+            else:
+                fname = spec
+            tids = target_files if target_files else lora_nodes
+            if not tids:
+                print("[warn] 未找到 LoraLoader 节点，--lora 忽略", file=sys.stderr)
+                break
+            nid = tids[min(i, len(tids) - 1)]
+            graph.setdefault(nid, {}).setdefault("inputs", {})["lora_name"] = fname
+            written.append((nid, "lora_name", fname))
+        if present == 0:
+            print("[warn] 模板中没有 LoraLoader 节点，--lora 未生效", file=sys.stderr)
+    # LoRA 权重（作用于所有 LoraLoader）
+    if lora_nodes:
+        for nid in lora_nodes:
+            ins = graph.setdefault(nid, {}).setdefault("inputs", {})
+            if getattr(args, "lora_strength_model", None) is not None:
+                ins["strength_model"] = args.lora_strength_model
+                written.append((nid, "strength_model", args.lora_strength_model))
+            if getattr(args, "lora_strength_clip", None) is not None:
+                ins["strength_clip"] = args.lora_strength_clip
+                written.append((nid, "strength_clip", args.lora_strength_clip))
+
+    # ---- 空 latent 尺寸 / 帧数 ----
+    if args.width or args.height or args.frames:
+        for nid, node in graph.items():
+            if not isinstance(node, dict):
+                continue
+            cls = node.get("class_type") or ""
+            if not cls.startswith("Empty") or "Latent" not in cls:
+                continue
+            ins = node.setdefault("inputs", {})
+            if args.width:
+                ins["width"] = args.width
+                written.append((nid, "width", args.width))
+            if args.height:
+                ins["height"] = args.height
+                written.append((nid, "height", args.height))
+            if args.frames:
+                key = "length" if "length" in ins else ("frames" if "frames" in ins else None)
+                if key:
+                    ins[key] = args.frames
+                    written.append((nid, key, args.frames))
+
+    # ---- 输出前缀 ----
+    for nid, node in graph.items():
+        if not isinstance(node, dict):
+            continue
+        ins = node.get("inputs") or {}
+        if (node.get("class_type") or "").startswith("Save") and "filename_prefix" in ins:
+            if args.prefix:
+                ins["filename_prefix"] = args.prefix
+                written.append((nid, "filename_prefix", args.prefix))
+    return graph, written
+
+
+def _apply_h3_overrides(graph, args, written):
+    """MiniMax-H3 音画视频范式的字段注入。该范式无 KSampler，注入点独立：
+    - prompt -> MiniMaxH3ImageToVideo.prompt
+    - seed   -> RandomNoise.noise_seed
+    - width/height -> ResolutionSelector.aspect_ratio/megapixels（或直接写节点宽高）
+    - frames -> 帧数表达式链里的输入值（ComfyMathExpression 上游的数字）
+    - lora   -> LoraLoaderModelOnly.lora_name（+strength_model）
+    - checkpoint -> UNETLoader.unet_name / VAELoader / CLIPLoader
+    未识别的字段写入会通过首层 _set 辅助函数记录。"""
+    def _setn(node_ids, key, value):
+        for nid in node_ids:
+            ins = graph.setdefault(nid, {}).setdefault("inputs", {})
+            ins[key] = value
+            written.append((nid, key, value))
+
+    # ---- prompt -> MiniMaxH3ImageToVideo.prompt ----
+    if args.prompt:
+        _setn(_find_nodes_by_class(graph, "MiniMaxH3ImageToVideo"), "prompt", args.prompt)
+
+    # ---- seed -> RandomNoise.noise_seed ----
+    if args.seed is not None:
+        _setn(_find_nodes_by_class(graph, "RandomNoise"), "noise_seed", args.seed)
+
+    # ---- 尺寸：ResolutionSelector（推荐，保留宽高比逻辑）----
+    if args.width or args.height:
+        sel = _find_nodes_by_class(graph, "ResolutionSelector")
+        if sel:
+            # ResolutionSelector 用 aspect_ratio/megapixels 控制，宽高非直接可写
+            if args.width and args.height:
+                ratio = "16:9" if args.width >= args.height else "9:16"
+                # megapixels 近似：按长边估算
+                mp = round((args.width * args.height) / 1e6, 2)
+                _setn(sel, "aspect_ratio", "{} (Widescreen)".format(ratio))
+                _setn(sel, "megapixels", mp)
+                for nid in sel:
+                    # 部分实现允许直接写 width/height；作兜底
+                    pass
+        else:
+            # 无 ResolutionSelector 则直接写 MiniMaxH3ImageToVideo 的宽高（若其 inputs 允许）
+            _setn(_find_nodes_by_class(graph, "MiniMaxH3ImageToVideo"), "width", args.width)
+            _setn(_find_nodes_by_class(graph, "MiniMaxH3ImageToVideo"), "height", args.height)
+
+    # ---- 帧数：ComfyMathExpression 上游的数值输入（PrimitiveFloat/PrimitiveInt）----
+    if args.frames:
+        # H3 帧数由表达式计算，难以直接设；尝试写帧表达式链条里的首个数字节点
+        for nid, node in graph.items():
+            if isinstance(node, dict) and node.get("class_type") in ("ComfyMathExpression",):
+                # 找到其 values.a 指向的数字节点
+                vals = node.get("inputs") or {}
+                for k, v in vals.items():
+                    if isinstance(v, list) and v:
+                        target = str(v[0])
+                        tgt_node = graph.get(target)
+                        if isinstance(tgt_node, dict) and tgt_node.get("class_type") in (
+                                "PrimitiveFloat", "PrimitiveInt"):
+                            tgt_node.setdefault("inputs", {})["value"] = args.frames
+                            written.append((target, "value", args.frames))
+                            break
+
+    # ---- lora -> LoraLoaderModelOnly ----
+    lora_nodes = _find_nodes_by_class(graph, "LoraLoaderModelOnly", "LoraLoader")
+    for i, spec in enumerate(getattr(args, "lora", []) or []):
+        fname = spec.split(":", 1)[-1].strip() if ":" in spec else spec
+        if not lora_nodes:
+            break
+        nid = lora_nodes[min(i, len(lora_nodes) - 1)]
+        _setn([nid], "lora_name", fname)
+    if getattr(args, "lora_strength_model", None) is not None:
+        for nid in lora_nodes:
+            _setn([nid], "strength_model", args.lora_strength_model)
+    if getattr(args, "lora_strength_clip", None) is not None:
+        for nid in lora_nodes:
+            _setn([nid], "strength_clip", args.lora_strength_clip)
+
+    # ---- checkpoint -> UNETLoader / VAELoader / CLIPLoader ----
+    if args.checkpoint:
+        for cls, field in (("UNETLoader", "unet_name"), ("VAELoader", "vae_name"),
+                           ("CLIPLoader", "clip_name")):
+            _setn(_find_nodes_by_class(graph, cls), field, args.checkpoint)
+
+    return graph, written
 
 
 def cmd_run(args, cfg):
@@ -426,8 +742,35 @@ def cmd_run(args, cfg):
         return 2
     graph.pop("_defaults", None)
 
+    # 字段级语义注入：导出 JSON 无 {{}} 时，也能按参数定位并写入对应节点输入
+    graph, field_written = apply_field_overrides(graph, args)
+    # --set 支持 NODE.FIELD=value（定位任意节点输入）与 KEY=value（占位符兼容）
+    if args.set:
+        for pair in args.set:
+            if "=" not in pair:
+                print("错误: --set 参数格式应为 KEY=VALUE 或 NODE.FIELD=VALUE: " + pair, file=sys.stderr)
+                return 2
+            k, v = pair.split("=", 1)
+            k = k.strip(); v = _parse_scalar(v.strip())
+            if "." in k:
+                # 支持 NODE.INPUT.FIELD ... 逐点定位：node_id 为第一段，其余沿路径下钻
+                parts = k.split(".")
+                node_id = parts[0]
+                cur = graph.setdefault(node_id, {})
+                for seg in parts[1:-1]:
+                    cur = cur.setdefault(seg, {})
+                cur[parts[-1]] = v
+                field_written.append((node_id, parts[1:], v))
+            else:
+                # 无节点前缀：写入 graph 中所有匹配该字段名的节点输入（字段语义兜底）
+                for nid, node in graph.items():
+                    if isinstance(node, dict) and k in (node.get("inputs") or {}):
+                        node["inputs"][k] = v
+                        field_written.append((nid, k, v))
+
     if args.dry_run:
-        print(json.dumps({"prompt_graph": graph, "values": values}, ensure_ascii=False, indent=2))
+        print(json.dumps({"prompt_graph": graph, "values": values,
+                          "field_overrides": field_written}, ensure_ascii=False, indent=2))
         return 0
 
     if not check_health(cfg):
@@ -466,6 +809,139 @@ def cmd_run(args, cfg):
     return 0
 
 
+# ---------------------------------------------------------------- 服务端发现
+
+# 加载器节点 -> 对应"可下载模型槽位"的输入字段名（这些字段在 /object_info 中
+# 是 combo 类型，其选项列表即服务端 models/ 下实际存在的文件名）
+MODEL_SLOTS = {
+    "CheckpointLoaderSimple": "ckpt_name",
+    "UNETLoader": "unet_name",
+    "LoraLoader": "lora_name",
+    "VAELoader": "vae_name",
+    "CLIPLoader": "clip_name",
+    "CLIPVisionLoader": "clip_name",
+    "ControlNetLoader": "control_net_name",
+    "LoraLoaderModelOnly": "lora_name",       # MiniMax-H3 系（仅加载器）
+}
+
+
+def get_object_info(cfg):
+    """GET /object_info -> {节点类名: 输入规格}（含自定义节点）。"""
+    _, raw = _request(cfg, "GET", "/object_info", timeout=cfg["timeouts"].get("connect", 30))
+    return json.loads(raw.decode("utf-8"))
+
+
+def _combo_options(spec):
+    """从输入规格里提取 combo 字段的选项列表（若存在）。"""
+    if not isinstance(spec, dict):
+        return None
+    for section in ("required", "optional"):
+        for field, detail in (spec.get(section) or {}).items():
+            if isinstance(detail, list) and detail and isinstance(detail[0], list):
+                yield field, [str(x) for x in detail[0]]
+
+
+def cmd_info(args, cfg):
+    """列出服务端可用的节点类与各加载器槽位的实际模型名。"""
+    if not check_health(cfg):
+        return 3
+    info = get_object_info(cfg)
+    print("服务端: {}  (节点类型 {} 个)".format(base_url(cfg), len(info)))
+    print("自定义/可用节点（前 40 个）:")
+    names = sorted(info)
+    for n in names[:40]:
+        print("  - " + n)
+    if len(names) > 40:
+        print("  ... 共 {} 个".format(len(names)))
+    print("\n模型槽位（combo 列表 = 服务端真实可用的文件名）:")
+    for cls, field in MODEL_SLOTS.items():
+        spec = info.get(cls)
+        if not spec:
+            continue
+        found = None
+        for f, options in _combo_options(spec.get("input", {})):
+            if f == field:
+                found = options
+                break
+        if found is None:
+            print("  [{}] {}: (未能从 combo 读取)".format(cls, field))
+            continue
+        print("  [{}] {}:  {} 个".format(cls, field, len(found)))
+        for opt in found:
+            print("      - " + opt)
+    print("\n提示: 用这些槽位名核对模板 _defaults 里的模型名；用 `validate` 校验模板匹配度。")
+    return 0
+
+
+def cmd_validate(args, cfg):
+    """校验某个 workflow 模板在服务端能否跑通：
+    1) 依赖的节点 class_type 是否都已安装；
+    2) 加载器字段引用的模型名是否在服务端 combo 里（仅对模板 _defaults/渲染值可解析的）。"""
+    if not check_health(cfg):
+        return 3
+    gen_type = getattr(args, "type", None) or args.command
+    wf_path = find_workflow(gen_type, args.workflow)
+    with open(wf_path, "r", encoding="utf-8") as f:
+        template_text = f.read()
+    defaults = extract_defaults(template_text)
+    info = get_object_info(cfg)
+
+    # 渲染出 graph 以便校验（校验不真正生成：图片类无需上传，注入占位；审核模板结构）
+    values = build_values(args, cfg, defaults)
+    if not values.get("UPLOADED_IMAGE"):
+        values["UPLOADED_IMAGE"] = "_placeholder_.png"
+    if not values.get("UPLOADED_VIDEO"):
+        values["UPLOADED_VIDEO"] = "_placeholder_.mp4"
+    try:
+        graph = json.loads(render_workflow(template_text, values))
+    except (RuntimeError, json.JSONDecodeError) as e:
+        print("错误: 模板渲染失败: {}".format(e), file=sys.stderr)
+        return 2
+    graph.pop("_defaults", None)
+
+    # 与生成一致：叠加字段级注入，让 --checkpoint/--width 等在校验时也生效
+    graph, _ = apply_field_overrides(graph, args)
+
+    issues = []
+    missing_nodes = []
+    for node_id, node in graph.items():
+        if not isinstance(node, dict):
+            continue
+        cls = node.get("class_type")
+        if cls not in info:
+            missing_nodes.append("节点 {}: class_type '{}' 未安装".format(node_id, cls))
+            continue
+        # 仅校验"加载器节点"的模型字段（ckpt/unet/lora/vae/clip/controlnet）；
+        # 其它 combo 字段（如 LoadImage.image、VHS_LoadVideo.video 列出的是运行时
+        # 上传的文件/资源名）属于运行期输入，不在此校验。
+        model_field = MODEL_SLOTS.get(cls)
+        if not model_field:
+            continue
+        for f, options in _combo_options(info[cls].get("input", {})):
+            if f != model_field:
+                continue
+            val = (node.get("inputs") or {}).get(f)
+            if isinstance(val, str) and val and options and val not in options:
+                issues.append("节点 {}: {} = '{}' 不在服务端可用列表".format(node_id, f, val))
+                print("    可用: " + ", ".join(options[:6]) + (" ..." if len(options) > 6 else ""))
+
+    print("校验 workflow: {}  (服务端 {})".format(os.path.basename(wf_path), base_url(cfg)))
+    print("  渲染后节点数: {} 个".format(len(graph)))
+    if missing_nodes:
+        print("  ❌ 缺失节点:")
+        for m in missing_nodes:
+            print("     - " + m)
+    else:
+        print("  ✅ 全部节点 class_type 已安装")
+    if issues:
+        print("  ❌ 模型名不匹配:")
+        for i in issues:
+            print("     - " + i)
+    else:
+        print("  ✅ 引用的模型名均可用")
+    return 1 if (missing_nodes or issues) else 0
+
+
 # ---------------------------------------------------------------- CLI
 
 def build_parser():
@@ -481,33 +957,48 @@ def build_parser():
 
     sub.add_parser("list", help="列出服务地址与各类型可用 workflow")
     sub.add_parser("health", help="检查 ComfyUI 服务是否可达")
+    sub.add_parser("info", help="发现服务端已安装节点与可用模型名（/object_info）")
+    # validate 复用与生成类型一致的参数集，便于渲染模板后校验
+    pv = sub.add_parser("validate", help="校验 workflow 模板在服务端能否跑通（节点/模型名匹配）")
+    pv.add_argument("--type", choices=KNOWN_TYPES, help="生成类型（决定默认 workflow 目录）")
+    add_gen_args(pv)
 
     pu = sub.add_parser("upload", help="上传图片到 ComfyUI input 目录")
     pu.add_argument("file", help="本地文件路径")
 
     for t in KNOWN_TYPES:
         sp = sub.add_parser(t, help="执行 {} 任务".format(t))
-        sp.add_argument("--prompt", default="", help="正向提示词")
-        sp.add_argument("--negative", default=None, help="负向提示词（默认取 workflow _defaults）")
-        sp.add_argument("--image", help="输入图片本地路径（图生图/图生视频/参考生视频必填）")
-        sp.add_argument("--video", help="参考视频本地路径（reference-to-video 用）")
-        sp.add_argument("--seed", type=int, help="随机种子（缺省随机）")
-        sp.add_argument("--width", type=int, help="宽度")
-        sp.add_argument("--height", type=int, help="高度")
-        sp.add_argument("--steps", type=int, help="采样步数")
-        sp.add_argument("--cfg", type=float, help="CFG scale")
-        sp.add_argument("--denoise", type=float, help="重绘幅度 0~1（图生图常用）")
-        sp.add_argument("--frames", type=int, help="视频帧数")
-        sp.add_argument("--fps", type=int, help="视频帧率")
-        sp.add_argument("--checkpoint", help="模型文件名（覆盖配置）")
-        sp.add_argument("--prefix", help="输出文件名前缀")
-        sp.add_argument("--workflow", help="指定 workflow JSON 路径（默认取 workflows/<类型>/default*.json）")
-        sp.add_argument("--set", action="append", metavar="KEY=VALUE",
-                        help="覆盖模板任意占位符，可多次使用，如 --set LORA=my.safetensors")
-        sp.add_argument("--output", help="结果下载目录（覆盖配置 output.dir）")
-        sp.add_argument("--no-download", action="store_true", help="只生成不下载")
-        sp.add_argument("--dry-run", action="store_true", help="只打印最终提交的 prompt JSON，不执行")
+        add_gen_args(sp)
     return p
+
+
+def add_gen_args(sp):
+    """为生成/校验命令添加统一的可变参数集。"""
+    sp.add_argument("--prompt", default=None, help="正向提示词（缺省用模板 _defaults/导出值）")
+    sp.add_argument("--negative", default=None, help="负向提示词（默认取 workflow _defaults）")
+    sp.add_argument("--image", help="输入图片本地路径（图生图/图生视频/参考生视频必填）")
+    sp.add_argument("--video", help="参考视频本地路径（reference-to-video 用）")
+    sp.add_argument("--seed", type=int, help="随机种子（缺省随机）")
+    sp.add_argument("--width", type=int, help="宽度")
+    sp.add_argument("--height", type=int, help="高度")
+    sp.add_argument("--steps", type=int, help="采样步数")
+    sp.add_argument("--cfg", type=float, help="CFG scale")
+    sp.add_argument("--denoise", type=float, help="重绘幅度 0~1（图生图常用）")
+    sp.add_argument("--frames", type=int, help="视频帧数")
+    sp.add_argument("--fps", type=int, help="视频帧率")
+    sp.add_argument("--checkpoint", help="模型文件名（覆盖配置）")
+    sp.add_argument("--lora", action="append", metavar="NODE:FILE",
+                    help="LoRA 名，可多次使用；格式 NODE:文件 或 直接文件名（写到 LoraLoader）。"
+                         "如 --lora 10:svi-shot.safetensors --lora strength=1.2")
+    sp.add_argument("--lora-strength-model", type=float, help="LoRA 模型权重 strength_model")
+    sp.add_argument("--lora-strength-clip", type=float, help="LoRA CLIP 权重 strength_clip")
+    sp.add_argument("--prefix", help="输出文件名前缀")
+    sp.add_argument("--workflow", help="指定 workflow JSON 路径（默认取 workflows/<类型>/default*.json）")
+    sp.add_argument("--set", action="append", metavar="NODE.FIELD=VALUE",
+                    help="按字段覆盖任意节点输入，如 5.inputs.cfg=5.5；也可用 FIELD=VALUE 匹配同名输入")
+    sp.add_argument("--output", help="结果下载目录（覆盖配置 output.dir）")
+    sp.add_argument("--no-download", action="store_true", help="只生成不下载")
+    sp.add_argument("--dry-run", action="store_true", help="只打印最终提交的 prompt JSON，不执行")
 
 
 def main(argv=None):
@@ -527,6 +1018,10 @@ def main(argv=None):
             return cmd_list(args, cfg)
         if args.command == "health":
             return cmd_health(args, cfg)
+        if args.command == "info":
+            return cmd_info(args, cfg)
+        if args.command == "validate":
+            return cmd_validate(args, cfg)
         if args.command == "upload":
             return cmd_upload(args, cfg)
         return cmd_run(args, cfg)

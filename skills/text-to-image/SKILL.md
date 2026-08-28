@@ -26,24 +26,29 @@ python3 scripts/comfyui_api.py text-to-image \
 
 ## 参数要点
 
-| 参数 | 说明 |
-|---|---|
-| `--prompt` | 正向提示词（标准化后的英文，必填） |
-| `--negative` | 负向提示词（缺省用模板 `_defaults.negative`） |
-| `--width/--height` | 缺省用模板 `_defaults`（SDXL 模板为 1024×1024） |
-| `--steps` | 缺省用模板 `_defaults`（20）；细节不够可加到 28–35 |
-| `--seed` | 固定 seed 可复现结果；缺省随机 |
-| `--cfg` | 提示词遵循度，缺省用模板（7）；过高易过饱和 |
-| `--checkpoint` | 切换模型（文件名须存在于服务端 models/checkpoints；缺省用模板 `_defaults.checkpoint`） |
-| `--workflow` | 换用同目录其他模板（如 flux），其 `_defaults` 随之生效 |
-| `--set KEY=VALUE` | 覆盖模板任意占位符，如 LoRA |
+**模板 = 你导出的 ComfyUI API JSON（无 `{{}}`）；参数由脚本按字段语义注入对应节点**
+（详见 `workflows/README.md`）。LLM 只传高级参数，无需懂模板结构。
 
-> 取值优先级：CLI > 模板 `_defaults`。尺寸/模型不读配置文件。
+| 参数 | 注入到 | 说明 |
+|---|---|---|
+| `--prompt` | 采样器 positive→CLIPTextEncode.text | 正向提示词（标准化后的英文，必填） |
+| `--negative` | 采样器 negative→CLIPTextEncode.text | 负向提示词（缺省用模板内已有值） |
+| `--width/--height` | 空 latent 节点 | 缺省用模板/导出值；SDXL 建议 1024 起步 |
+| `--steps` | KSampler | 缺省用模板值；细节不够可加到 28–35 |
+| `--seed` | KSampler | 固定 seed 复现；缺省随机 |
+| `--cfg` | KSampler | 提示词遵循度（缺省用模板值）；过高易过饱和 |
+| `--checkpoint` | `CheckpointLoaderSimple.ckpt_name` 或 `UNETLoader.unet_name` | 换模型（须存在于服务端 models/） |
+| `--workflow` | — | 换用同目录其他模板 |
+| `--set NODE.FIELD=VALUE` | 任意节点输入 | 精确覆盖，如 `5.inputs.cfg=5.5`、`10.inputs.lora_name=...` |
+
+> 取值优先级：CLI > 模板/导出硬编码值。尺寸/模型不读配置文件。
+> 用 `--dry-run` 查看字段注入结果，`validate` 确认模型匹配服务端。
 
 ## 默认模板
 
-`workflows/text-to-image/default_sdxl.json`（SDXL：CheckpointLoader → CLIPTextEncode
-×2 → KSampler → VAEDecode → SaveImage）。换模型后按 `workflows/README.md` 重新导出。
+`workflows/text-to-image/default_*.json`（你导出的 API JSON）。当前 `default_sdxl.json`
+为示例导出产物（Krea/Qwen 分体栈：UNET+CLIP+VAE+Lora），**请用你服务端实际跑通的
+导出 JSON 替换**——字段注入器自动识别它是整包还是分体加载。
 
 ## 常见问题
 

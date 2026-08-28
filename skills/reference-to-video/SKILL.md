@@ -46,9 +46,10 @@ python3 scripts/comfyui_api.py reference-to-video \
 
 ## 默认模板
 
-`workflows/reference-to-video/default_wan_vace.json`（骨架：LoadImage +
-VHS_LoadVideo 提供控制信号 → KSampler → VAEDecode → SaveAnimatedWEBP）。
-骨架中控制信号的接入方式需按实际节点（VACE 等）在界面中补全后重新导出。
+`workflows/reference-to-video/default_*.json`（你导出的 API JSON）。
+**请用你服务端实际跑通的参考生视频导出 JSON 替换**：`--image`/`--video` 上传后写入
+`LoadImage.image`/`VHS_LoadVideo.video`。该类模型的控制信号接入（VACE/H3 等）
+因部署而异，务必用你跑通的导出 JSON，不要硬套占位符骨架。
 
 ## 常见问题
 

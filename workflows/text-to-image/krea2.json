@@ -1,0 +1,128 @@
+{
+  "1": {
+    "inputs": {
+      "unet_name": "redcraft23INT8INT4FP8_30Krea2.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet加载器"
+    }
+  },
+  "2": {
+    "inputs": {
+      "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+      "type": "krea2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "加载CLIP"
+    }
+  },
+  "3": {
+    "inputs": {
+      "text": "Masterpiece, best quality, hyper-realistic 8k, photorealistic:\nSubject: Very fair but natural Korean woman with cool-toned pale skin and delicate glow (snow-white to porcelain\nwhite balance), stunningly beautiful face. Huge D-cup bust with semi-transparent mint-green latex showing soft\ncurves underneath, tiny waist, fleshy thighs. Standing one-legged split pose, right hand \"V\" sign near lips,\nintense erotic yet innocent shy expression, flushed cheeks breathing heavily.\nOutfit: Fresh cool-toned light blue/greenish-white latex swimsuit; upper chest high-transparency mesh revealing\nsubtle breast shapes beneath, lower crotch panel ultra-thin transparent fabric showing clear internal anatomy\ndetails. Tight sheer black/white knee-high socks fully coated in thick glossy oil creating wet glass effect on\nlegs and torso.\nInteraction: 30yo Black man's erect penis partially inserted into her cleft (half-in position), smooth skin\ncontact highlighting the contrast between his dark muscular body and her cool-toned pale form, dark hand gripping\nhip tightly.\nLighting & Texture: Cinematic volumetric lighting with sharp rim lights outlining wet curves, subsurface\nscattering for translucent fabric and natural oily sheen on very fair skin, razor-sharp specular highlights\ndefining oil droplets and latex surface tension, shallow depth of field, extreme anatomical clarity at junction\npoints, fluid dynamics simulation.\nAtmosphere: Intense intimacy, cool color temperature contrasting warm oil glow.",
+      "clip": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "4": {
+    "inputs": {
+      "text": "worst quality, low quality, normal quality, jpeg artifacts, blurry, watermark, text, signature, crop, muting\ncolors, overexposed, underexposed, bad anatomy, wrong anatomy, extra limbs, missing fingers, too many fingers,\nlong neck, fused hands, disconnected legs, uneven face, asymmetrical body, distorted genitalia, messy hair, dull\nskin, dry texture, flat lighting",
+      "clip": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP文本编码"
+    }
+  },
+  "5": {
+    "inputs": {
+      "seed": 484537662983948,
+      "steps": 12,
+      "cfg": 1.5,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "3",
+        0
+      ],
+      "negative": [
+        "4",
+        0
+      ],
+      "latent_image": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器"
+    }
+  },
+  "6": {
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE"
+    }
+  },
+  "7": {
+    "inputs": {
+      "samples": [
+        "5",
+        0
+      ],
+      "vae": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "8": {
+    "inputs": {
+      "images": [
+        "7",
+        0
+      ],
+      "filename_prefix": "krea2_result"
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "预览图像"
+    }
+  },
+  "9": {
+    "inputs": {
+      "width": 512,
+      "height": 512,
+      "batch_size": 4
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "空Latent图像"
+    }
+  }
+}

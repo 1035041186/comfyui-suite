@@ -4,7 +4,29 @@
 
 ---
 
-## [v1.0.0] - 2026-08-27 18:15:01
+## [v1.1.0] - 2026-08-28 10:49:45
+
+**更新作者**: yiping zhang
+**更新类型**: 需求新增（功能增强）
+
+### 更新内容
+- 新增「导出即模板 + 字段语义注入」机制：ComfyUI 导出的 API JSON 无需 `{{}}` 占位符即可直接使用，脚本按节点字段语义定位并写入参数。
+- 字段注入器支持 SD 通用范式（KSampler/CLIPTextEncode 定位）与 MiniMax-H3 音画视频范式（MiniMaxH3ImageToVideo/RandomNoise/LoraLoaderModelOnly 定位）。
+- 新增 `info`（发现服务端节点+模型）、`validate`（校验模板匹配度）命令，支持按真实服务端 combo 列表校验模型名。
+- 新增 `--lora`/`--lora-strength-*` 快捷参数，`--set NODE.INPUT.FIELD=VALUE` 精确覆盖。
+- 录入 4 个用户环境真实可用的工作流为模板：SD 整包文生图、Krea2 文生图、SD 图生图、MiniMax-H3 音画文生视频；修正模型名为服务端真实值。
+- 新增 `references/models.md`（模型目录含 LoRA、用途标注与更换流程）。
+- 删除绑定 wan/sdxl 且含违规内容的旧骨架模板；`image-to-video`/`reference-to-video` 标注为待替换骨架。
+
+### 影响文件
+- `scripts/comfyui_api.py` — 字段注入器（SD+H3 双范式）、info/validate、--lora、--set 字段级
+- `workflows/<类型>/default_*.json` — 4 个真实可跑模板（SD/Krea2/SD图生图/MiniMax-H3）
+- `workflows/README.md` — 模板机制、H3 注入、各类型状态标注
+- `references/models.md` — 模型目录（新增）
+- `SKILL.md`、`skills/*/SKILL.md` — 字段注入与模型选择说明
+- `CHANGELOG.md` — 本条目
+
+---
 
 **更新作者**: yiping zhang
 **更新类型**: 需求新增

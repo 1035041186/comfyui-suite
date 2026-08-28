@@ -37,9 +37,10 @@ python3 scripts/comfyui_api.py image-to-video \
 
 ## 默认模板
 
-`workflows/image-to-video/default_wan_i2v.json`（Wan2.1 I2V 骨架：LoadImage →
-CLIPVisionEncode 提供图像条件 → KSampler → VAEDecode → SaveAnimatedWEBP）。
-不同 I2V 模型（SVD、Wan-I2V、HunyuanVideo-I2V）节点不同，务必按实际部署重新导出。
+`workflows/image-to-video/default_*.json`（你导出的 API JSON）。
+**请用你服务端实际跑通的 I2V 导出 JSON 替换**：`--image` 上传后写入 `LoadImage.image`，
+提示词写入 CLIPTextEncode，`--frames/--width/--height` 写入空 latent 节点。
+不同 I2V 模型（Wan/SVD/HunyuanVideo/H3）节点接入不同，务必用对应导出 JSON。
 
 ## 常见问题
 

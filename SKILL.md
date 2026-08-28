@@ -40,17 +40,34 @@ description: ComfyUI 本地生图/生视频服务的自动化总入口（组合 
 按标准产出英文正向提示词 + 负向提示词（H3 协议无负向提示词）。若用户明确要求跳过优化（"就用原话"），
 则直接使用原始输入。
 
-### 第 3 步：检查服务与参数
+> 提示词注入落点因工作流而异：SD/Krea2 模板 → `CLIPTextEncode.text`（`--negative` 写 CLIPTextEncode）；
+> MiniMax-H3 视频模板 → `MiniMaxH3ImageToVideo.prompt`（无单独 negative，负向内容写进 prompt 内）。
+> 脚本按范式自动定位，LLM 无需关心落点。
+
+### 第 3 步：检查服务并选择模型
 
 ```bash
 python3 scripts/comfyui_api.py health      # 确认服务可达
 python3 scripts/comfyui_api.py list        # 查看各类型可用 workflow
+python3 scripts/comfyui_api.py info        # 查看服务端已装节点 + 各槽位真实模型
 ```
+
+**选择模型**（模板 `_defaults.checkpoint` 只是兜底，按用户需求覆盖）：
+1. 读 `references/models.md`，按需求（生图/生视频、写实/二次元、是否音画一体）
+   挑候选模型名；
+2. 用 `validate --type <类型> --checkpoint <候选>` 确认候选在服务端存在；
+3. 用 `--checkpoint <文件名>`（或 `--set CHECKPOINT=<文件名>`）替换模板默认模型；
+4. 多模型联动（换视频 UNET 需同步换匹配的 VAE/CLIP，如 `MiniMax-H3\...`
+   要配 `MiniMax-H3_VideoVAE`）：这些联动以你**导出并跑通的 H3 工作流**为准，
+   不要臆造节点/模型名；不确定时向用户展示 `info` 的真实清单让其选择。
 
 服务不可达时：提示用户检查 ComfyUI 是否启动、地址是否正确
 （`config/comfyui.yaml` 或 `--server host:port` 或环境变量 `COMFYUI_HOST/PORT`）。
 
 ### 第 4 步：调用生成
+
+**模板 = 你导出的 ComfyUI API JSON（无 `{{}}`），参数由脚本按字段语义注入**。
+LLM 只需传高级参数，代码负责定位并写入正确节点，无需懂模板结构：
 
 ```bash
 cd comfyui-suite
@@ -58,15 +75,30 @@ python3 scripts/comfyui_api.py <类型> \
     --prompt "<标准化后的正向提示词>" \
     --negative "<负向提示词>" \
     [--image <本地图片>] [--video <参考视频>] \
-    [--seed N] [--width W --height H] [--steps N] \
-    [--workflow <模板路径>] [--set KEY=VALUE]
+    [--seed N] [--width W --height H] [--steps N] [--cfg C] [--denoise D] \
+    [--checkpoint <模型名>] [--lora <NODE:文件名>] [--lora-strength-model 1.2 --lora-strength-clip 0.9] \
+    [--workflow <模板路径>] [--set NODE.INPUT.FIELD=VALUE]
 ```
 
-- 先 `--dry-run` 校验最终 JSON（排障时使用）；
-- 脚本自动上传图片 → 提交 → 轮询 → 下载结果到 `outputs/`，
-  stdout 输出含 `local_path` 的 JSON；
-- 详细参数见 `scripts/comfyui_api.py --help` 与各子 skill。
-- 参数取值优先级：CLI 显式 > workflow `_defaults` > 报错缺参（seed 缺省随机）。
+**`--workflow` 的选择规则（LLM 自主判断，无需用户明确指定）：**
+- 默认：**不传** `--workflow`，脚本自动用该类型 `default_` 前缀（无则第一个）模板；
+- 换模板：先跑 `python3 scripts/comfyui_api.py list`，看该类型下有哪些 JSON（`*` 是默认）；
+- 何时显式指定 `--workflow`：仅当用户要求**特定风格/尺寸/模型栈**、或 **list 显示该类型
+  有多个模板**且默认那个明显不匹配用户的生成意图时，才传 `--workflow <文件名>`；
+- 用户没提具体模板时，**一律不传** `--workflow`，交给默认模板。
+
+字段注入对应关系（详见 `workflows/README.md`）：
+- `--prompt/--negative` → 沿采样器 `positive/negative` 引用追溯到 CLIPTextEncode；
+- `--seed/--steps/--cfg/--denoise` → KSampler；
+- `--checkpoint` → `CheckpointLoaderSimple.ckpt_name` 或 `UNETLoader.unet_name`；
+- `--lora <NODE:文件名>` → `LoraLoader.lora_name`；`--lora-strength-model/clip` → 对应权重；
+- `--width/--height/--frames` → 空 latent 节点；`--image/--video` → 上传后文件名；
+- `--set NODE.FIELD=VALUE` → 精确覆盖任意节点输入（如 `5.inputs.cfg=5.5`）。
+
+- 先 `--dry-run` 校验最终 JSON（能正确注入、排除错误时使用）；
+- 脚本自动上传图片 → 提交 → 轮询 → 下载结果到 `outputs/`，stdout 输出含 `local_path`；
+- 详细参数见 `scripts/comfyui_api.py --help` 与各子 skill；
+- 参数取值优先级：**CLI 显式 > workflow 自带硬编码值**（`--dry-run` 看注入结果确认）。
 
 ### 第 5 步：交付结果
 
