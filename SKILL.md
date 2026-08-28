@@ -114,9 +114,75 @@ python3 scripts/comfyui_api.py <类型> \
 - 详细参数见 `scripts/comfyui_api.py --help` 与各子 skill；
 - 参数取值优先级：**CLI 显式 > workflow 自带硬编码值**（`--dry-run` 看注入结果确认）。
 
-### 第 5 步：交付结果
+### 第 5 步：交付报告
+
+向用户交付时，**用一段可读的中文说明**，清楚交代「我用了哪个类型、哪套工作流、哪个模型、
+哪些关键参数」，同时把命令与参数放在代码块里承载精确值。**不要只丢一个文件路径或一堆 JSON**。
+
+报告结构（按此组织，描述自然，参数精确）：
+
+```
+【调用链】类型 → 工作流 → 模型
+> 判定：为什么路由到这个类型（输入素材 + 用户意图）
+> 工作流：default_sd15_base（SD 整包）/ krea2（Krea2 分体）/ ...；默认 or --workflow 显式
+> 模型：oneObsession_v23（默认）或依据 info/models.md 换成了 xxx
+
+【关键参数】
+> 提示词摘要：<一句话概括正向/负向内容，别整段贴>
+> seed / width / height / steps / cfg / denoise / frames / lora 逐个列出
+
+【实际命令】（代码块）
+python3 scripts/comfyui_api.py <类型> --prompt "..." --seed N --width W --height H ...
+
+【结果】
+> 文件：<本地路径>（outputs/ 下）
+> 校验：validate 是否通过（模型名/节点匹配）｜失败原因
+```
+
+**要点**
+- 调用链与参数**必须写具体值**（模型名、seed、尺寸、lora），这是判断"用没用对"的依据；
+- 描述用**自然语言**，参数用**代码块精确呈现**，二者结合，避免整段命令/JSON 堆砌；
+- 以上小标题的字段属建议，语气可灵活，但**调用链 + 参数 + 结果三块必须齐全**；
+- 若执行失败，同样按报告格式呈现，并说明失败阶段（连接/渲染/任务 error/超时）与依据
+  （`validate` 提示、stderr 报错）。
+
+### 失败排查（第 5 步附）
 
 向用户展示生成文件的本地路径；失败时根据 stderr 报错判断：
 - 连接失败 → 配置/服务问题；
 - 任务 error → workflow 与模型不匹配（提示按 `workflows/README.md` 重新导出模板）；
 - 超时 → 调大 `config/comfyui.yaml` 的 `timeouts.poll_max`。
+
+---
+
+## 交付报告示例（照此格式模仿）
+
+> 以下是一个"文生图、SD 写实、换了模型"的完整报告示例，展示如何把调用路径与参数写成
+> 可读又不失精确的说明。
+
+【调用链】文生图 → SD 整包（default_sd15_base）→ 模型 majicmixRealistic_v7
+
+> **为什么是文生图**：用户只给了文字描述，没有图片，是"画一张图"的意图。
+> **工作流**：该类型有两套——默认 `default_sd15_base`（SD 整包）与 `krea2`（Krea2 分体）。
+> 用户要的是"写实人像"，读 `references/models.md` 发现 SD 整包里的写实模型更契合，
+> 但默认模板的 `oneObsession_v23` 偏二次元，所以换成写实的 `majicmixRealistic_v7`。
+> 模型栈不变（仍是 SD 整包），故沿用默认工作流，只换 `--checkpoint`。
+
+【关键参数】
+> 正向提示词：写实人像 + 柔和光照 + 浅景深（完整英文见下方命令）
+> 负向提示词：模糊、瑕疵、水印
+> seed=42 ｜ width/height=1024×1024 ｜ steps=30 ｜ cfg=7 ｜ denoise=1.0 ｜ 无 LoRA
+
+【实际命令】
+```bash
+python3 scripts/comfyui_api.py text-to-image \
+    --prompt "a realistic portrait, soft cinematic lighting, shallow depth of field, 8k" \
+    --negative "blurry, bad anatomy, watermark" \
+    --seed 42 --width 1024 --height 1024 --steps 30 --cfg 7 \
+    --checkpoint majicmixRealistic_v7.safetensors
+```
+
+【结果】
+> 文件：`outputs/t2i_84f1a2.webp`（可通过 `list` + `info` 反查该模板的模型栈）
+> 校验：`validate --type text-to-image --checkpoint majicmixRealistic_v7.safetensors`
+> 通过（模型名存在于服务端、节点已安装）。
