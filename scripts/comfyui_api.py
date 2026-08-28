@@ -255,25 +255,12 @@ def collect_outputs(entry):
 
 
 def _session_cwd():
-    """稳定解析「会话工作目录」作为输出锚点：
-    优先从 DSH_SESSION_JSONL 解出会话记录的 cwd（真正跟会话走、不随 bash cd 漂移），
-    解析失败才回退到 os.getcwd()。返回可供路径拼接的绝对路径。"""
-    path = os.environ.get("DSH_SESSION_JSONL") or ""
-    if path and os.path.isfile(path):
-        try:
-            import subprocess as _sp
-            raw = _sp.run(["zstd", "-dc", path], capture_output=True, text=True).stdout
-            for line in raw.splitlines():
-                if not line.strip():
-                    continue
-                try:
-                    o = json.loads(line)
-                except Exception:
-                    continue
-                if o.get("type") == "session" and o.get("cwd"):
-                    return o["cwd"]
-        except Exception:
-            pass
+    """输出锚点：调用脚本时的当前工作目录（跨 agent 通用）。
+    优先用环境变量 PWD（任何 shell/agent 都有），回退 os.getcwd()。
+    不依赖 DSH 特有变量，换 agent 同样生效。"""
+    pwd = os.environ.get("PWD") or ""
+    if pwd and os.path.isabs(pwd) and os.path.isdir(pwd):
+        return pwd
     return os.getcwd()
 
 
@@ -832,11 +819,9 @@ def cmd_run(args, cfg):
     #  - 否则：<cwd>/<config.dir 或 ./outputs>/<类型>/<时间戳>/   （按类型+时间戳分区，避免覆盖）
     # 输出目录：以当前工作目录(cwd)为基础，而非 skill 根
     #  - --output 绝对路径：直接用，不追加类型子目录
-    # 输出目录：无论相对(基于 cwd)或绝对(--output)路径，都追加 <生成类型>/ 子目录，
-    # 再在 download_file 内给文件名加时间戳。保证「按类型分区 + 时间戳文件名」一致。
-    # 输出目录：稳定落在「会话工作目录」下的 outputs，按生成类型分区。
-    #  - 默认：<会话工作目录>/outputs/<类型>/   （锚点从 DSH 会话记录解析，跟会话走、不随 bash cd 漂移）
-    #  - --output：作为产出根（相对则基于会话工作目录），仍追加 <类型>/ 子目录
+    # 输出目录：跨 agent 通用，稳定落在「当前工作目录」下的 outputs，按生成类型分区。
+    #  - 默认：<当前工作目录>/outputs/<类型>/  （锚点 = 调用脚本时的 cwd，不依赖 DSH，换 agent 同样生效）
+    #  - --output：作为产出根（相对则基于当前工作目录），仍追加 <类型>/ 子目录
     # 不做任何"试探换路径"：只写这个位置；若只读/无权则明确报错定位，不引导切换。
     out_root = args.output or cfg["output"].get("dir", "./outputs")
     if not os.path.isabs(out_root):

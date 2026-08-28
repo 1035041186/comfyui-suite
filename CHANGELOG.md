@@ -4,6 +4,22 @@
 
 ---
 
+## [v1.2.6] - 2026-08-28 13:12:11
+
+**更新作者**: yiping zhang
+**更新类型**: 需求调整
+
+### 更新内容
+- 输出锚点改为「纯跨 agent 通用」：`_session_cwd()` 用通用环境变量 `PWD`（任何 shell/agent 都有）而非 DSH 专有的 `DSH_SESSION_JSONL`/`zstd`。
+- 移除对 DSH 的耦合：换到其他 agent（Claude Code 等）同样生效，输出稳定落到「当前工作目录」下的 `outputs/<类型>/`。
+- 清理相关注释。
+
+### 影响文件
+- `scripts/comfyui_api.py` — `_session_cwd()` 改为 PWD 通用锚点，去除 DSH/zstd 依赖
+- `CHANGELOG.md` — 本条目
+
+---
+
 ## [v1.2.5] - 2026-08-28 13:08:19
 
 **更新作者**: yiping zhang
