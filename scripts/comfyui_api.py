@@ -254,14 +254,40 @@ def collect_outputs(entry):
     return files
 
 
-def _session_cwd():
-    """输出锚点：调用脚本时的当前工作目录（跨 agent 通用）。
-    优先用环境变量 PWD（任何 shell/agent 都有），回退 os.getcwd()。
-    不依赖 DSH 特有变量，换 agent 同样生效。"""
+def _lookup_session_root():
+    """从系统声明的会话工作目录取根：依次尝试 `Your working directory is <path>`
+    这类系统提示里的声明，其次环境变量 PWD，最后 os.getcwd()。
+    返回绝对路径（字符串）。仅用于探测，不硬编码。"""
+    # 优先环境变量 PWD（任何 shell/agent 都有，跨 agent 通用）且必须是绝对存在的目录
     pwd = os.environ.get("PWD") or ""
     if pwd and os.path.isabs(pwd) and os.path.isdir(pwd):
         return pwd
     return os.getcwd()
+
+
+def resolve_session_root(args, cfg):
+    """确定「会话工作根」：优先 --root 显式传入（流程让 LLM 传 pwd/系统声明目录）；
+    否则用 _lookup_session_root() 探测。返回绝对路径。"""
+    root = getattr(args, "root", None)
+    if root and os.path.isabs(root) and os.path.isdir(root):
+        return root
+    return _lookup_session_root()
+
+
+def resolve_output_path(root, cfg, gen_type=None, override=None):
+    """按统一规则拼接产出目录。
+    产出根 = override(绝对路径，则直接用作产出根) 或 <会话根>/<config.output.dir>；再追加 <生成类型>/。
+       - config.output.dir 是相对路径，相对于会话根（默认 outputs）
+       - override 为 --output 绝对路径时，作为产出根，仍追加 <生成类型>/
+    返回 (产出目录绝对路径, 是否用了 override)。"""
+    out_root = override or cfg["output"].get("dir", "outputs")
+    if os.path.isabs(out_root):
+        base = out_root
+    else:
+        base = os.path.join(root, out_root)
+    if gen_type:
+        base = os.path.join(base, gen_type)
+    return base
 
 
 def _makedirs(path):
@@ -271,7 +297,7 @@ def _makedirs(path):
         os.makedirs(path, exist_ok=True)
     except OSError as e:
         raise RuntimeError("无法创建输出目录 {}（只读/无权限）：{}。"
-                           "请确认会话工作目录可写，或用 --output 指定可写的绝对路径。".format(path, e))
+                           "请确认会话工作根可写，或用 --output 指定可写的绝对路径。".format(path, e))
 
 
 def download_file(cfg, meta, out_dir):
@@ -444,6 +470,16 @@ def cmd_health(args, cfg):
     ok = check_health(cfg)
     print("{} {}".format(base_url(cfg), "OK" if ok else "UNREACHABLE"))
     return 0 if ok else 3
+
+
+def cmd_output_path(args, cfg):
+    """计算最终产出目录：<会话工作根>/<config.output.dir>/<生成类型>/。
+    会话工作根 = --root(流程传入的会话根) 或 系统声明/PWD 探测。
+    打印该绝对路径（供交付报告引用/判断），不创建目录。"""
+    root = resolve_session_root(args, cfg)
+    out_dir = resolve_output_path(root, cfg, getattr(args, "type", None), override=args.output)
+    print(out_dir)
+    return 0
 
 
 def cmd_upload(args, cfg):
@@ -816,17 +852,13 @@ def cmd_run(args, cfg):
     print("[4/4] 完成，输出 {} 个文件".format(len(files)), file=sys.stderr)
     # 输出目录：以当前工作目录(cwd)为基础，而非 skill 根
     #  - --output 绝对路径：直接用，不追加类型/时间戳子目录
-    #  - 否则：<cwd>/<config.dir 或 ./outputs>/<类型>/<时间戳>/   （按类型+时间戳分区，避免覆盖）
-    # 输出目录：以当前工作目录(cwd)为基础，而非 skill 根
-    #  - --output 绝对路径：直接用，不追加类型子目录
-    # 输出目录：跨 agent 通用，稳定落在「当前工作目录」下的 outputs，按生成类型分区。
-    #  - 默认：<当前工作目录>/outputs/<类型>/  （锚点 = 调用脚本时的 cwd，不依赖 DSH，换 agent 同样生效）
-    #  - --output：作为产出根（相对则基于当前工作目录），仍追加 <类型>/ 子目录
+    # 输出目录：由「会话工作根」+ config.output.dir + 生成类型 统一拼接。
+    #   root = --root(流程传入的会话工作根) 或 系统声明/PWD 探测
+    #   产出目录 = <会话工作根>/<config.output.dir>/<生成类型>/（config.dir 为相对路径，相对会话根）
+    #   --output 绝对路径时，作为产出根直接替代 <会话根>/<config.dir>，仍追加 <生成类型>/
     # 不做任何"试探换路径"：只写这个位置；若只读/无权则明确报错定位，不引导切换。
-    out_root = args.output or cfg["output"].get("dir", "./outputs")
-    if not os.path.isabs(out_root):
-        out_root = os.path.join(_session_cwd(), out_root)
-    out_dir = os.path.join(out_root, args.command)  # args.command 即生成类型
+    root = resolve_session_root(args, cfg)
+    out_dir = resolve_output_path(root, cfg, args.command, override=args.output)
     _makedirs(out_dir)  # 不存在则建；建立失败会抛出 OSError（含只读/无权限），交给外层统一报错定位
     downloaded, meta_list = [], []
     for meta in files:
@@ -996,6 +1028,11 @@ def build_parser():
     sub.add_parser("list", help="列出服务地址与各类型可用 workflow")
     sub.add_parser("health", help="检查 ComfyUI 服务是否可达")
     sub.add_parser("info", help="发现服务端已安装节点与可用模型名（/object_info）")
+    # output-path：计算最终产出目录（<会话工作根>/<config.output.dir>/<生成类型>/）
+    pop = sub.add_parser("output-path", help="打印最终产出目录路径（供交付引用/判断）")
+    pop.add_argument("--root", help="会话工作根（流程传入；缺省用系统声明/PWD 探测）")
+    pop.add_argument("--type", choices=KNOWN_TYPES, help="生成类型（决定末尾 <类型>/ 子目录）")
+    pop.add_argument("--output", help="覆盖产出根（绝对路径，仍追加 <类型>/ 子目录）")
     # validate 复用与生成类型一致的参数集，便于渲染模板后校验
     pv = sub.add_parser("validate", help="校验 workflow 模板在服务端能否跑通（节点/模型名匹配）")
     pv.add_argument("--type", choices=KNOWN_TYPES, help="生成类型（决定默认 workflow 目录）")
@@ -1035,7 +1072,8 @@ def add_gen_args(sp):
     sp.add_argument("--workflow", help="指定 workflow JSON 路径（默认取 workflows/<类型>/default*.json）")
     sp.add_argument("--set", action="append", metavar="NODE.FIELD=VALUE",
                     help="按字段覆盖任意节点输入，如 5.inputs.cfg=5.5；也可用 FIELD=VALUE 匹配同名输入")
-    sp.add_argument("--output", help="结果目录；绝对路径用该路径（不追加类型/时间戳），相对路径为 <cwd>/<该路径>/<类型>/<时间戳>/")
+    sp.add_argument("--root", help="会话工作根（流程传入；缺省用系统声明/PWD 探测），产出目录 = <root>/<config.output.dir>/<类型>/")
+    sp.add_argument("--output", help="覆盖产出根（绝对路径，仍追加 <类型>/ 子目录）")
     sp.add_argument("--no-download", action="store_true", help="只生成不下载")
     sp.add_argument("--dry-run", action="store_true", help="只打印最终提交的 prompt JSON，不执行")
 
@@ -1059,6 +1097,8 @@ def main(argv=None):
             return cmd_health(args, cfg)
         if args.command == "info":
             return cmd_info(args, cfg)
+        if args.command == "output-path":
+            return cmd_output_path(args, cfg)
         if args.command == "validate":
             return cmd_validate(args, cfg)
         if args.command == "upload":

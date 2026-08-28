@@ -4,6 +4,26 @@
 
 ---
 
+## [v1.3.0] - 2026-08-28 14:06:07
+
+**更新作者**: yiping zhang
+**更新类型**: 需求新增（功能增强）
+
+### 更新内容
+- 新增 `output-path` 命令：确定性计算最终产出目录 = `<会话工作根>/<config.output.dir>/<生成类型>/`，供流程显式引用，不再依赖脚本"猜测当前目录"。
+- `config.output.dir` 改为 `outputs`（去 `./`），注明是**相对路径、相对于会话工作根**。
+- 流程约定：生成前先 `pwd`（或读系统声明 working directory）确定会话根，再用 `output-path` 求产出目录才调用生成；产出路径稳定为 `<会话工作根>/outputs/<类型>/<时间戳>_<名>`。
+- 新增 `--root` 参数（传入会话工作根），生成命令与 output-path 均支持；`--output` 绝对路径可覆盖产出根（仍追加 `<类型>/`）。
+- 统一路径拼接函数 `resolve_session_root`/`resolve_output_path`。
+
+### 影响文件
+- `scripts/comfyui_api.py` — 新增 output-path 命令、--root 参数、统一路径函数
+- `config/comfyui.yaml` — output.dir 改为 outputs + 相对会话根注释
+- `SKILL.md` — 第 4 步加「确定性求会话根→output-path 求路径」流程
+- `CHANGELOG.md` — 本条目
+
+---
+
 ## [v1.2.6] - 2026-08-28 13:12:11
 
 **更新作者**: yiping zhang

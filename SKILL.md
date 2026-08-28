@@ -80,12 +80,29 @@ python3 scripts/comfyui_api.py info        # 查看服务端已装节点 + 各�
 
 ### 第 4 步：调用生成
 
+**先确定「会话工作根 + 产出目录」，再调用生成——不要猜输出位置。** 流程约定：
+
+```bash
+# 【前置：确定性取会话工作根】优先系统提示声明的 working directory；否则调 `pwd`
+pwd
+# 记录下输出根，例如 session_root=/root/projects/src/test
+
+# 【确定最终产出目录】<会话工作根>/<config.output.dir>/<生成类型>/
+python3 scripts/comfyui_api.py output-path --root <会话工作根> --type <类型>
+# → 产出目录，例如 /root/projects/src/test/outputs/text-to-image
+```
+
+- 产出路径 = `<会话工作根>/outputs/<生成类型>/<时间戳>_<文件名>`；
+- 若与会话工作区一致的可写区不用额外指定；如需覆盖产出根，用 `--output <绝对路径>`（仍追加 `<类型>/`）；
+- **不要**依赖脚本"探测当前目录"来猜测——就是用 `output-path` 显式求出，然后引用它。
+
 **模板 = 你导出的 ComfyUI API JSON（无 `{{}}`），参数由脚本按字段语义注入**。
 LLM 只需传高级参数，代码负责定位并写入正确节点，无需懂模板结构：
 
 ```bash
 cd comfyui-suite
 python3 scripts/comfyui_api.py <类型> \
+    --root <会话工作根> \
     --prompt "<标准化后的正向提示词>" \
     --negative "<负向提示词>" \
     [--image <本地图片>] [--video <参考视频>] \

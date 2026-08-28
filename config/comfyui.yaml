@@ -1,26 +1,5 @@
-# ComfyUI 服务配置
-# 只放"服务连接"相关配置（换部署环境才改的东西）。
-# 尺寸/帧数/步数/模型等生成参数不在这里——它们跟随模型与工作流，
-# 写在各 workflow 模板的 `_defaults` 字段中（见 workflows/README.md），
-# 运行时可用 CLI 参数覆盖，优先级：CLI > workflow _defaults。
-#
-# 环境变量可覆盖同名配置项（环境变量优先）：
-#   COMFYUI_HOST / COMFYUI_PORT / COMFYUI_PROTOCOL / COMFYUI_API_KEY / COMFYUI_OUTPUT_DIR
-
-server:
-  protocol: http          # http | https
-  host: 10.0.0.1         # ComfyUI 服务地址
-  port: 8188              # ComfyUI 服务端口
-  api_key: ""             # 若服务端启用了 --api-key，在此填写（会作为 Authorization: Bearer 头）
-
-timeouts:
-  connect: 10             # 建立连接超时（秒）
-  queue: 60               # 提交 /prompt 请求超时（秒）
-  poll_interval: 2        # 轮询 /history 的间隔（秒）
-  poll_max: 1800          # 最长等待时间（秒），视频任务可调大
-
 output:
-  dir: ./outputs          # 结果目录：相对路径基于 cwd，最终为 <产出根>/<生成类型>/；
-                          # 可用 --output <绝对路径> 或环境变量 COMFYUI_OUTPUT_DIR 指定可写产出根
-                          # （绝对路径同样会追加 <生成类型>/ 子目录）
+  dir: outputs            # 相对路径，相对于「会话工作根」；最终为 <会话工作根>/outputs/<生成类型>/
+                          # 会话根由流程确定（优先系统声明的 working directory，其次 pwd），
+                          # 可用 --output <绝对路径> 或环境变量 COMFYUI_OUTPUT_DIR 覆盖产出根
   auto_download: true     # 任务完成后自动从 /view 下载结果文件
