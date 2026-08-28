@@ -32,18 +32,23 @@
 python3 scripts/comfyui_api.py <类型> --prompt "..." --seed N --width W --height H ...
 
 【结果】
-> 文件：`outputs/t2i_xxx.png`（inline code：**可点击链接**，视频/图片都认）
->   - 图片：另加 markdown 图片语法 `![结果](outputs/t2i_xxx.png)` 尽量在对话内预览
->   - 视频/动图：图片预览不生效，但 inline code 链接可点击打开
+> 文件路径：`outputs/t2i_xxx.png`（正文引用即可；bash 产物不可点击，见下方说明）
+>   - 图片：交付前用 `read_image` 读入 → **直接显示到对话**（已验证可行）
+>   - 视频/动图：read_image 不支持，作为正文引用文字说明 + 文件路径
 > 校验：validate 是否通过（模型名/节点匹配）｜失败原因
 
-**结果呈现规则（写清文件 + 便于在对话/工作区查看）：**
-1. **必须用 inline code**（`` `路径` ``）引用生成文件——用工具返回的精确路径，或本 turn 内唯
-   一的 basename。这样文件在 Web 里可点击（图片、视频都认）；
-2. **图片**（png/jpg）：额外写一行 `![描述](相对路径)` 以尽量触发对话内预览；路径用相对
-   工作目录、可访问的（如 `outputs/xxx.png`）。视频/动图（mp4/webp）无对话预览，只走链接；
-3. 若生成多个文件，逐个用 inline code 列出，避免只给一个宽泛的目录。
+**结果呈现规则（写清文件 + 便于在对话查看）：**
+1. **图片**（png/jpg）：交付前调用 `read_image `<文件绝对路径>`读入，让图片直接显示到对话。
+   这是 DSH 里让图片可见的可靠方式；**不要依赖 markdown 图片语法或"inline code 可点击"**——
+   DSH 只对 `write`/`edit` **文本**产物记录为可点击，bash 下载的图片不在其列，点了没反应。
+2. **视频/动图**（mp4/webp）：`read_image` 不支持，只能作为正文用 inline code 引用
+   文件路径 + 文字说明（无法预览，也无法点击打开）。
+3. 多个文件逐个列出；图片逐个 `read_image`，视频/文字引用单独写。
 ```
+
+> ⚠️ 关于"可点击打开"：DSH 只会把 `write`/`edit` 文本工具改过的文件记录为可点击产物；
+> `comfyui_api.py` 经 bash 生成的图片/视频**不会被记录为可点击**。所以图片用 `read_image`
+> 显示到对话，视频就只能看文字引用。这是 DSH 产物追踪的机制限制，不是本 skill 的问题。
 
 ### 调用序列写法说明
 
@@ -100,6 +105,9 @@ python3 scripts/comfyui_api.py text-to-image \
 
 【结果】
 > 文件：`outputs/t2i_84f1a2.webp`（可通过 `list` + `info` 反查该模板的模型栈）
->   图片预览：![生成结果](outputs/t2i_84f1a2.webp)
+>   图片显示：已用 `read_image` 读入 `outputs/t2i_84f1a2.webp` → 直接显示在对话。
 > 校验：`validate --type text-to-image --checkpoint majicmixRealistic_v7.safetensors`
 > 通过（模型名存在于服务端、节点已安装）。
+
+> 若结果是**视频**（mp4/webp）：read_image 不支持，改为正文 inline code 引用
+> `outputs/xxx.mp4` + 文字说明（无法预览/点击）。
