@@ -799,14 +799,28 @@ def cmd_run(args, cfg):
     #  - 否则：<cwd>/<config.dir 或 ./outputs>/<类型>/<时间戳>/   （按类型+时间戳分区，避免覆盖）
     # 输出目录：以当前工作目录(cwd)为基础，而非 skill 根
     #  - --output 绝对路径：直接用，不追加类型子目录
-    #  - 否则：<cwd>/<config.dir 或 ./outputs>/<类型>/   （按类型分区）
-    #    ※ 每个文件在 download_file 里已统一加时间戳前缀（含 --output 绝对路径情况）
+    # 输出目录：无论相对(基于 cwd)或绝对(--output)路径，都追加 <生成类型>/ 子目录，
+    # 再在 download_file 内给文件名加时间戳。保证「按类型分区 + 时间戳文件名」一致。
+    #  - --output 绝对路径：作为产出根，追加 <类型>/ 子目录
+    #  - 否则：<cwd>/<config.dir 或 ./outputs>/<类型>/  （若 cwd 只读会导致下载失败，见 STDOUT 提示）
     out_dir = args.output or cfg["output"].get("dir", "./outputs")
-    if os.path.isabs(out_dir):
-        pass  # 用户显式指定的绝对路径，保持原样
-    else:
-        base = os.getcwd()
-        out_dir = os.path.join(base, out_dir, args.command)  # args.command 即生成类型
+    if not os.path.isabs(out_dir):
+        out_dir = os.path.join(os.getcwd(), out_dir)
+    # 统一追加生成类型子目录（图片/视频各自分区，避免混在一起）
+    out_dir = os.path.join(out_dir, args.command)  # args.command 即生成类型
+    # 提前检查产出目录是否可写，避免下载时静默失败
+    if cfg["output"].get("auto_download", True) and not args.no_download:
+        try:
+            os.makedirs(out_dir, exist_ok=True)
+        except OSError as e:
+            print("错误: 产出目录不可写 {}: {}".format(out_dir, e), file=sys.stderr)
+            print("提示: 用 --output <可写绝对路径> 指定产出根（会自动追加 <类型>/ 子目录），"
+                  "或设置环境变量 COMFYUI_OUTPUT_DIR=<可写目录>。", file=sys.stderr)
+            return 3
+        if not os.access(out_dir, os.W_OK):
+            print("错误: 产出目录不可写 {}（只读/无权限）".format(out_dir), file=sys.stderr)
+            print("提示: 用 --output <可写绝对路径> 或 COMFYUI_OUTPUT_DIR 指定可写目录。", file=sys.stderr)
+            return 3
     downloaded, meta_list = [], []
     for meta in files:
         item = {k: meta[k] for k in ("filename", "subfolder", "type", "_kind") if k in meta}

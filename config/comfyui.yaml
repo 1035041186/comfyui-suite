@@ -20,6 +20,7 @@ timeouts:
   poll_max: 1800          # 最长等待时间（秒），视频任务可调大
 
 output:
-  dir: ./outputs          # 结果目录（相对当前工作目录 cwd；最终为 <cwd>/<dir>/<生成类型>/）
-                          # 若为绝对路径则完全按该路径，不追加类型子目录
+  dir: ./outputs          # 结果目录：相对路径基于 cwd，最终为 <产出根>/<生成类型>/；
+                          # 可用 --output <绝对路径> 或环境变量 COMFYUI_OUTPUT_DIR 指定可写产出根
+                          # （绝对路径同样会追加 <生成类型>/ 子目录）
   auto_download: true     # 任务完成后自动从 /view 下载结果文件
