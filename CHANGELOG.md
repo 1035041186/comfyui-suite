@@ -4,6 +4,33 @@
 
 ---
 
+## [v1.6.0] - 2026-08-29 17:14:12
+
+**更新作者**: yiping zhang
+**更新类型**: 需求新增
+
+### 更新内容
+- 新增**图片调整迭代**能力（多轮调整，**不限次数**）：首次生图已稳定，但"用户不满意再改"缺乏稳定调整流程/路由指引/修改指导建议。本次补齐三要素——调整路由（**基准取舍 + 少动/大动**判定）、"症状→杠杆"决策表、迭代状态（基准图+固化 seed）约定。
+- 新增 `references/refine.md`：图片调整迭代的**单一事实来源**——两问判定（**第 1 句"这张该不该留作基准"决定重新生成 or 基于旧图迭代**，含"别把被否定的图当 `--image` 基准"的反模式提醒；第 2 句"同方向换实例 or 换方向"定少动/大动）、"不满意症状→杠杆"决策表（含"完全不喜欢→重新生成"分支）、**参数档位速查**（denoise 0.3–0.45/0.5–0.7/0.75–0.9、steps 28–35、cfg 常规 6–8、checkpoint/lora、batch 等建议值）、迭代状态字段说明（基准图/基线参数/本轮改动/固化项）、反馈收敛闭环与边界（局部重绘/inpaint/ControlNet 当前不支持）。
+- 新增 `skills/image-refine/SKILL.md`：**编排层**子技能（非生成类型，无独立 workflow/`comfyui_api.py` 子命令），复用 `text-to-image`（seed 重roll/改词/重生成）与 `image-to-image`（基于上一张迭代），先定"基准取舍"再"少动/大动"，携带迭代上下文、只动一个主导轴、走反馈收敛闭环。
+- 总入口 `SKILL.md`：描述（front-matter）加入"对已生成图片不满意要修/调整/再改/重画"关键词并指向 `image-refine` 修复路径；第 1 步路由表加一行"上一轮已成图、不满意再调整 → image-refine"，补充"迭代优先"说明；执行步骤清单补"调整迭代"注记（先问"基准取舍"，完全不喜欢→重生成、不基于旧图）。
+- `references/reporting.md`：新增"迭代版报告（第 N 轮调整）"交付格式——标注第 N 轮、相对上一轮改了什么轴+为什么、列出上一轮基线参数作对照，并提供回滚提示。
+- `skills/image-to-image/SKILL.md`：denoise 阶梯补充"当输入图是上一轮输出即迭代调整"，指向 `image-refine`/`references/refine.md`；建议迭代固化 seed + 只变 denoise/提示词做 A/B。
+- 入口注册与文档同步：`scripts/install_skills.sh` 由 7 增至 8 个入口（新增 `comfyui-image-refine` 软链）；`README.md`、`references/guide.md` 更新为 8 入口、补 `refine.md` 到目录树。
+
+### 影响文件
+- `references/refine.md` — 新增（图片调整迭代决策表，单一事实来源）
+- `skills/image-refine/SKILL.md` — 新增（编排层迭代子技能）
+- `SKILL.md` — 路由表加行 + "迭代优先"说明 + 执行步骤补迭代注记
+- `references/reporting.md` — 新增"迭代版报告（第 N 轮调整）"
+- `skills/image-to-image/SKILL.md` — denoise 阶梯衔接迭代调整、指向 refine
+- `scripts/install_skills.sh` — 新增 `comfyui-image-refine` 入口（7→8）
+- `README.md` — 8 入口 + 目录树补 refine.md
+- `references/guide.md` — 8 入口 + 目录树补 refine.md
+- `CHANGELOG.md` — 本条目
+
+---
+
 ## [v1.5.2] - 2026-08-29 16:58:17
 
 **更新作者**: yiping zhang

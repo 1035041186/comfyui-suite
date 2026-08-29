@@ -19,10 +19,11 @@ comfyui-suite/
 │   ├── guide.md                    # 使用/安装/扩展/配置分层说明
 │   ├── models.md                   # 模型目录（用途、更换流程）
 │   ├── reporting.md                # 交付报告规范与示例
+│   ├── refine.md                   # 图片调整迭代决策表（不满意再改）
 │   └── execution-plan.md           # 执行计划模型 + 跨宿主任务清单适配
 ├── scripts/
 │   ├── comfyui_api.py              # 统一调用脚本（纯 Python 标准库，无需 pip）
-│   └── install_skills.sh           # 一键挂载 7 个可调用入口
+│   └── install_skills.sh           # 一键挂载 8 个可调用入口
 ├── workflows/<类型>/*.json         # 各类型工作流模板（ComfyUI 导出，可替换）
 ├── prompt-guides/                  # 图片/视频提示词标准化参考
 ├── skills/<类型>/SKILL.md          # 子技能（单类型精细控制）
@@ -49,7 +50,7 @@ cd comfyui-suite
 bash scripts/install_skills.sh
 ```
 
-脚本会在 `<项目根>/.dsh/skills/` 下创建 **7 个可调用入口**：
+脚本会在 `<项目根>/.dsh/skills/` 下创建 **8 个可调用入口**：
 
 | 入口 | 作用 |
 |---|---|
@@ -59,6 +60,7 @@ bash scripts/install_skills.sh
 | `/comfyui-text-to-video` | 文生视频 |
 | `/comfyui-image-to-video` | 图生视频 |
 | `/comfyui-reference-to-video` | 参考生视频 |
+| `/comfyui-image-refine` | 图片调整迭代（对已生成图不满意时的多轮调整，不限次数） |
 | `/comfyui-prompt-optimizer` | 提示词优化（只优化、不生成） |
 
 > 说明：很多 agent 框架（如 DSH）只扫描技能目录的**一层**，所以脚本用"薄目录 + 软链接"方式

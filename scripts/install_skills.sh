@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 安装 comfyui-suite 的 7 个可调用 skill 入口到项目级 skills 根。
+# 安装 comfyui-suite 的 8 个可调用 skill 入口到项目级 skills 根。
 # DSH 只扫描 skills 根的一层目录，故为每个子 skill 建薄目录 + softlink 指向源文件。
 set -euo pipefail
 
@@ -31,5 +31,6 @@ link_skill "skills/image-to-image"         comfyui-image-to-image
 link_skill "skills/text-to-video"          comfyui-text-to-video
 link_skill "skills/image-to-video"         comfyui-image-to-video
 link_skill "skills/reference-to-video"     comfyui-reference-to-video
+link_skill "skills/image-refine"           comfyui-image-refine
 link_skill "skills/prompt-optimizer"       comfyui-prompt-optimizer
 echo "完成。重载技能目录后可用 /comfyui-suite 或 /comfyui-<type> 调用。"

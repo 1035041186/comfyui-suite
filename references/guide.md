@@ -3,9 +3,9 @@
 > 本文件是运行时**按需加载**的参考信息。总入口 `SKILL.md` 只负责调度（路由 + 五步流程），
 > 需要以下内容时再读本文件。架构说明见 `README.md`。
 
-## 1. 如何被调用（7 个入口）
+## 1. 如何被调用（8 个入口）
 
-本套件注册了 **7 个独立可调用**的 skill（供 LLM 通过 `/` 或自动触发），都挂在项目级
+本套件注册了 **8 个独立可调用**的 skill（供 LLM 通过 `/` 或自动触发），都挂在项目级
 skills 根 `<项目根>/.dsh/skills/`。DSH 扫描只认**一层目录**，子 skill 用
 "平铺目录 + softlink 指向源文件"挂载：
 
@@ -17,11 +17,15 @@ skills 根 `<项目根>/.dsh/skills/`。DSH 扫描只认**一层目录**，子 s
 ├── comfyui-text-to-video      -> 文生视频
 ├── comfyui-image-to-video     -> 图生视频
 ├── comfyui-reference-to-video -> 参考生视频
+├── comfyui-image-refine       -> 图片调整迭代（不满意再改）
 └── comfyui-prompt-optimizer   -> 提示词优化（只优化不生成）
 ```
 
 - **总入口**：默认收敛到 `/comfyui-suite`，由它自动路由到具体类型；
 - **子 skill**：也可显式调用 `/comfyui-text-to-image` 等，绕开路由、只做单一类型；
+- **图片调整迭代**：`/comfyui-image-refine` 是**编排层**（非生成类型，无独立 workflow/`comfyui_api.py`
+  子命令），对已生成图不满意时复用 `text-to-image`/`image-to-image` 做多轮调整（不限次数），
+  "少动/大动"判定与"症状→杠杆"决策表见 `references/refine.md`；
 - **安装**：`bash scripts/install_skills.sh` 自动生成这些入口（幂等）。
 
 ## 2. 源码目录结构
@@ -32,7 +36,7 @@ comfyui-suite/
 ├── README.md                       # 架构与快速开始
 ├── config/comfyui.yaml             # 服务连接配置（地址/端口/超时/输出目录）
 ├── scripts/comfyui_api.py          # 统一调用脚本（纯标准库，python3 直接运行）
-├── scripts/install_skills.sh       # 一键挂载 7 个入口到 <项目根>/.dsh/skills
+├── scripts/install_skills.sh       # 一键挂载 8 个入口到 <项目根>/.dsh/skills
 ├── workflows/<类型>/default_*.json # 各类型工作流模板（API 格式，{{占位符}} + _defaults）
 ├── prompt-guides/                  # 提示词标准化参考
 │   ├── image-prompt-guide.md       # 图片（tag 式）
@@ -42,6 +46,7 @@ comfyui-suite/
 │   ├── guide.md                    # 使用/安装/扩展/配置分层（本文件）
 │   ├── models.md                   # 模型目录（含 LoRA、用途、更换流程）
 │   ├── reporting.md                # 交付报告规范与示例
+│   ├── refine.md                   # 图片调整迭代决策表（不满意再改）
 │   └── execution-plan.md           # 可移植执行计划 + 宿主任务清单适配（跨 agent）
 └── skills/<类型>/SKILL.md          # 子 skill（单类型精细控制）
 ```
