@@ -4,6 +4,28 @@
 
 ---
 
+## [v1.6.2] - 2026-08-29 19:52:14
+
+**更新作者**: yiping zhang
+**更新类型**: 需求调整
+
+### 更新内容
+- **图生图工作流更新**：`workflows/image-to-image/default_img2img_sdx.json` 由 SDXL（`divingIllustriousReal_v70` + 双编码器 SDKXL）替换为 **SD1.5 整包**（`oneObsession_v23` + 单 `CLIPTextEncode` + 标准 VAEEncode 接线），并**标准化命名**为 `default_sd15_img2img.json`（消除文件名中已不准确的 `sdx` 后缀）。
+- **新增 Krea2 图生图备选**：把中文名 `赤佬3(Krea2).json` 标准化为 `krea2_img2img.json`（Krea2 分体：`redcraft23...30Krea2` + `qwen3vl_4b` CLIP + `qwen_image_vae`）；默认仍为 SD1.5，Krea2 需 `--workflow krea2_img2img.json` 显式选用，对齐 `text-to-image` 的「SD 默认 + krea2 备选」模式。
+- **引用同步**：`SKILL.md` 类型资源表、`workflows/README.md` 状态表（新增 Krea2 备选行）、`skills/image-refine/SKILL.md`、`references/refine.md`、`skills/image-to-image/SKILL.md`（默认模板说明改为两份模板）。两份工作流均 `validate` 通过（节点与模型名匹配服务端）。
+
+### 影响文件
+- `workflows/image-to-image/default_img2img_sdx.json` → 重命名 `default_sd15_img2img.json`（内容换为 SD1.5）
+- `workflows/image-to-image/赤佬3(Krea2).json` → 重命名 `krea2_img2img.json`（新增）
+- `SKILL.md` — image-to-image 默认模板名
+- `workflows/README.md` — 状态表 image-to-image 行（SD1.5 默认 + Krea2 备选）
+- `skills/image-refine/SKILL.md` — 迭代上下文工作流名
+- `references/refine.md` — 迭代上下文工作流名
+- `skills/image-to-image/SKILL.md` — 默认模板改为两份说明
+- `CHANGELOG.md` — 本条目
+
+---
+
 ## [v1.6.1] - 2026-08-29 18:10:19
 
 **更新作者**: yiping zhang

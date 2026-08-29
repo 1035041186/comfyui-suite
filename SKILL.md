@@ -74,7 +74,7 @@ description: ComfyUI 本地生图/生视频服务的自动化总入口（组合 
 | 类型 | 子 skill | 提示词标准 | 默认模板 |
 |---|---|---|---|
 | text-to-image | `skills/text-to-image/SKILL.md` | `image-prompt-guide.md` | `default_sd15_base.json` |
-| image-to-image | `skills/image-to-image/SKILL.md` | `image-prompt-guide.md` | `default_img2img_sdx.json` |
+| image-to-image | `skills/image-to-image/SKILL.md` | `image-prompt-guide.md` | `default_sd15_img2img.json` |
 | text-to-video | `skills/text-to-video/SKILL.md` | `video-prompt-guide.md`（H3→`h3-video-prompt-protocol.md`） | `default_minimax_h3_t2v.json` |
 | image-to-video | `skills/image-to-video/SKILL.md` | `video-prompt-guide.md`（H3→`h3-video-prompt-protocol.md` I2VA） | `default_minimax_h3_i2v.json` |
 | reference-to-video | `skills/reference-to-video/SKILL.md` | `video-prompt-guide.md`（H3→`h3-video-prompt-protocol.md`，按素材选 I2VA/FL2VA/L2VA） | `default_minimax_h3_r2v.json` |

@@ -16,7 +16,8 @@
 |---|---|---|---|
 | `text-to-image` | `default_sd15_base.json` | SD 整包 | ✅ 真实可跑 |
 | `text-to-image`（备选） | `krea2.json` | Krea2 分体 | ✅ 真实可跑（需 `--workflow krea2.json`） |
-| `image-to-image` | `default_img2img_sdx.json` | SD（整包+VAEEncode） | ✅ 真实可跑 |
+| `image-to-image` | `default_sd15_img2img.json` | SD1.5（整包+VAEEncode） | ✅ 真实可跑 |
+| `image-to-image`（备选） | `krea2_img2img.json` | Krea2 分体 | ✅ 真实可跑（需 `--workflow krea2_img2img.json`） |
 | `text-to-video` | `default_minimax_h3_t2v.json` | MiniMax-H3 音画（T2VA） | ✅ 真实可跑 |
 | `image-to-video` | `default_minimax_h3_i2v.json` | MiniMax-H3 音画（I2VA 首帧） | ✅ 真实可跑 |
 | `reference-to-video` | `default_minimax_h3_r2v.json` | MiniMax-H3 音画（Ref2VA/FL2VA 双参考图） | ✅ 真实可跑 |

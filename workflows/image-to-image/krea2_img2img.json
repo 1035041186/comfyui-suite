@@ -1,0 +1,142 @@
+{
+  "1": {
+    "inputs": {
+      "unet_name": "redcraft23INT8INT4FP8_30Krea2.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNet加载器"
+    }
+  },
+  "2": {
+    "inputs": {
+      "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+      "type": "krea2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "加载CLIP"
+    }
+  },
+  "5": {
+    "inputs": {
+      "seed": 346249555111740,
+      "steps": 12,
+      "cfg": 1.5,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 0.8,
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "16",
+        0
+      ],
+      "negative": [
+        "17",
+        0
+      ],
+      "latent_image": [
+        "12",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "K采样器"
+    }
+  },
+  "6": {
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "加载VAE"
+    }
+  },
+  "7": {
+    "inputs": {
+      "samples": [
+        "5",
+        0
+      ],
+      "vae": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE解码"
+    }
+  },
+  "11": {
+    "inputs": {
+      "image": "example.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
+  "12": {
+    "inputs": {
+      "pixels": [
+        "11",
+        0
+      ],
+      "vae": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE编码"
+    }
+  },
+  "16": {
+    "inputs": {
+      "text": "chinese, masterpiece, best quality, ultra detailed, photorealistic, a beautiful young woman, long platinum blonde hair, wispy bangs, large expressive green eyes, soft pink lips, gentle smile, fair pale skin with soft rosy blush, delicate nose, close-up portrait, soft natural window lighting, warm soft light, photorealistic portrait photography, shallow depth of field, bokeh, natural skin texture, sharp focus, 8k",
+      "clip": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Positive)"
+    }
+  },
+  "17": {
+    "inputs": {
+      "text": "lowres, bad anatomy, bad hands, missing fingers, extra fingers, deformed, blurry, worst quality, watermark, text, signature, illustration, anime, cartoon, cgi, 3d render, drawing, painting",
+      "clip": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Negative)"
+    }
+  },
+  "18": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "7",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "保存图像"
+    }
+  }
+}

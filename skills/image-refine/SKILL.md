@@ -39,7 +39,7 @@ description: 图片调整迭代：用户对已生成的图片不满意，要求�
 
 ```
 【迭代上下文】第 N 轮   # N 可为任意轮（2、3、10...），不限次数
-- 类型/工作流/模型：image-to-image / default_img2img_sdx / oneObsession_v23
+- 类型/工作流/模型：image-to-image / default_sd15_img2img / oneObsession_v23
 - 基准输入图：第 N-1 轮输出（outputs/<类型>/<时间戳>_xxx.png）
 - 基线参数：上轮 prompt / negative / seed / denoise / steps / cfg / 尺寸
 - 本轮改动：<改了什么轴 + 为什么>
