@@ -637,11 +637,12 @@ def _find_sampler(graph):
     return None, None
 
 
-_H3_VIDEO_NODE = "MiniMaxH3ImageToVideo"
+# MiniMax-H3 音画视频节点：图生视频（ImageToVideo）与参考生视频（ReferenceToVideo）两种范式。
+_H3_VIDEO_NODES = ("MiniMaxH3ImageToVideo", "MiniMaxH3ReferenceToVideo")
 
 def _is_h3_video(graph):
-    """探测该 graph 是否为 MiniMax-H3 音画视频范式（存在 MiniMaxH3ImageToVideo 节点）。"""
-    return any(isinstance(n, dict) and n.get("class_type") == _H3_VIDEO_NODE
+    """探测该 graph 是否为 MiniMax-H3 音画视频范式（存在 H3 音画节点）。"""
+    return any(isinstance(n, dict) and n.get("class_type") in _H3_VIDEO_NODES
                for n in graph.values())
 
 
@@ -823,14 +824,54 @@ def apply_field_overrides(graph, args, cfg):
     return graph, written
 
 
+def _inject_h3_image(graph, args, written):
+    """MiniMax-H3 视频：把上传的图片写入驱动它的 LoadImage 节点。
+    - I2VA（第一帧）：--image -> 驱动 first_frame 的 LoadImage；
+    - Ref2VA/FL2VA（参考帧）：--image -> ref_image_0，--image2 -> ref_image_1
+      （缺省复用 --image，避免第二槽位悬空）；
+    - 兜底：找不到上述槽位时，把 --image 写入所有 LoadImage。"""
+    def _put(nid, val):
+        if not nid or val is None:
+            return
+        ins = graph.setdefault(nid, {}).setdefault("inputs", {})
+        if ins.get("image") != val:
+            ins["image"] = val
+            written.append((nid, "image", val))
+
+    img1 = getattr(args, "_uploaded_image", None)
+    if img1 is None:
+        return
+    img2 = getattr(args, "_uploaded_image2", None) or img1
+    injected = False
+    for nid, node in graph.items():
+        if not isinstance(node, dict):
+            continue
+        cls = node.get("class_type")
+        if cls == "MiniMaxH3ImageToVideo":
+            tgt, _ = _resolve_ref(graph, (node.get("inputs") or {}).get("first_frame"))
+            _put(tgt, img1)
+            injected = injected or bool(tgt)
+        elif cls == "MiniMaxH3ReferenceToVideo":
+            slots = sorted((k, v) for k, v in (node.get("inputs") or {}).items()
+                           if k.startswith("ref_images."))
+            for idx, (_, ref) in enumerate(slots):
+                tgt, _ = _resolve_ref(graph, ref)
+                _put(tgt, img1 if idx == 0 else img2)
+                injected = injected or bool(tgt)
+    if not injected:
+        for nid in _find_nodes_by_class(graph, "LoadImage"):
+            _put(nid, img1)
+
+
 def _apply_h3_overrides(graph, args, written):
     """MiniMax-H3 音画视频范式的字段注入。该范式无 KSampler，注入点独立：
-    - prompt -> MiniMaxH3ImageToVideo.prompt
+    - prompt -> H3 音画节点.prompt（MiniMaxH3ImageToVideo / MiniMaxH3ReferenceToVideo）
     - seed   -> RandomNoise.noise_seed
     - width/height -> ResolutionSelector.aspect_ratio/megapixels（或直接写节点宽高）
     - frames -> 帧数表达式链里的输入值（ComfyMathExpression 上游的数字）
     - lora   -> LoraLoaderModelOnly.lora_name（+strength_model）
     - checkpoint -> UNETLoader.unet_name / VAELoader / CLIPLoader
+    - 图片   -> 驱动 LoadImage（first_frame / ref_images.*，见 _inject_h3_image）
     未识别的字段写入会通过首层 _set 辅助函数记录。"""
     def _setn(node_ids, key, value):
         for nid in node_ids:
@@ -838,9 +879,14 @@ def _apply_h3_overrides(graph, args, written):
             ins[key] = value
             written.append((nid, key, value))
 
-    # ---- prompt -> MiniMaxH3ImageToVideo.prompt ----
+    # ---- 上传图片 -> 驱动 LoadImage（先于其它注入，保证图片就位）----
+    _inject_h3_image(graph, args, written)
+    if getattr(args, "_uploaded_video", None):
+        print("[warn] 当前 MiniMax-H3 音画视频工作流不使用参考视频，--video 已忽略", file=sys.stderr)
+
+    # ---- prompt -> H3 音画节点.prompt（I2VA/Ref2VA 均适用）----
     if args.prompt:
-        _setn(_find_nodes_by_class(graph, "MiniMaxH3ImageToVideo"), "prompt", args.prompt)
+        _setn(_find_nodes_by_class(graph, *_H3_VIDEO_NODES), "prompt", args.prompt)
 
     # ---- seed -> RandomNoise.noise_seed ----
     if args.seed is not None:
@@ -861,9 +907,9 @@ def _apply_h3_overrides(graph, args, written):
                     # 部分实现允许直接写 width/height；作兜底
                     pass
         else:
-            # 无 ResolutionSelector 则直接写 MiniMaxH3ImageToVideo 的宽高（若其 inputs 允许）
-            _setn(_find_nodes_by_class(graph, "MiniMaxH3ImageToVideo"), "width", args.width)
-            _setn(_find_nodes_by_class(graph, "MiniMaxH3ImageToVideo"), "height", args.height)
+            # 无 ResolutionSelector 则直接写 H3 音画节点的宽高（若其 inputs 允许）
+            _setn(_find_nodes_by_class(graph, *_H3_VIDEO_NODES), "width", args.width)
+            _setn(_find_nodes_by_class(graph, *_H3_VIDEO_NODES), "height", args.height)
 
     # ---- 帧数：ComfyMathExpression 上游的数值输入（PrimitiveFloat/PrimitiveInt）----
     if args.frames:
@@ -909,10 +955,9 @@ def _apply_h3_overrides(graph, args, written):
 def cmd_run(args, cfg):
     needs_image = args.command in ("image-to-image", "image-to-video", "reference-to-video")
     if needs_image and not args.image:
+        # reference-to-video 现为 H3 Ref2VA/FL2VA（两帧参考图），不再必须 --video；
+        # 仅要求 --image（首/起始参考帧），--image2 提供尾帧。
         print("错误: {} 需要 --image <本地图片路径或base64>".format(args.command), file=sys.stderr)
-        return 2
-    if args.command == "reference-to-video" and not args.video:
-        print("错误: reference-to-video 需要 --video <本地参考视频路径>", file=sys.stderr)
         return 2
 
     wf_path = find_workflow(args.command, args.workflow)
@@ -923,6 +968,9 @@ def cmd_run(args, cfg):
     if args.image:
         print("[1/4] 上传图片 ...", file=sys.stderr)
         args._uploaded_image = upload_image(cfg, args.image)
+    if getattr(args, "image2", None):
+        print("[1/4] 上传第二张参考图 ...", file=sys.stderr)
+        args._uploaded_image2 = upload_image(cfg, args.image2)
     if getattr(args, "video", None):
         print("[1/4] 上传参考视频 ...", file=sys.stderr)
         args._uploaded_video = upload_image(cfg, args.video)
@@ -1186,7 +1234,8 @@ def add_gen_args(sp):
     sp.add_argument("--prompt", default=None, help="正向提示词（缺省用模板 _defaults/导出值）")
     sp.add_argument("--negative", default=None, help="负向提示词（默认取 workflow _defaults）")
     sp.add_argument("--image", help="输入图片：`-`（从 stdin 读 base64，跨 agent/不落盘/无 argv 上限）或 本地文件路径（用户上传/显式给路径/agent 一步拿到的文件）。（图生图/图生视频/参考生视频必填）")
-    sp.add_argument("--video", help="参考视频本地路径（reference-to-video 用）")
+    sp.add_argument("--image2", help="第二张参考图（reference-to-video 的 H3 Ref2VA/FL2VA 尾帧参考；本地路径或 `-`，缺省复用 --image）")
+    sp.add_argument("--video", help="参考视频本地路径（reference-to-video 用；H3 双图参考工作流不使用，会忽略）")
     sp.add_argument("--seed", type=int, help="随机种子（缺省随机）")
     sp.add_argument("--width", type=int, help="宽度")
     sp.add_argument("--height", type=int, help="高度")

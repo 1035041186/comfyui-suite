@@ -39,7 +39,7 @@ description: ComfyUI 本地生图/生视频服务的自动化总入口（组合 
 
 | 条件 | 类型 | 子 skill / 脚本 |
 |---|---|---|
-| 有图片 **+** 参考视频，想生成新视频 | reference-to-video | `reference-to-video` |
+| 有参考图（首/尾帧、角色/风格）或参考视频，想生成新视频 | reference-to-video | `reference-to-video` |
 | 有图片，意图是**视频** | image-to-video | `image-to-video` |
 | 有图片，意图是**改图/重绘/换风格** | image-to-image | `image-to-image` |
 | 无图片，意图是**视频/动画** | text-to-video | `text-to-video` |
@@ -47,7 +47,8 @@ description: ComfyUI 本地生图/生视频服务的自动化总入口（组合 
 | **上一轮已成图，对其不满意再调整** | image-refine | `image-refine` |
 
 关键词：视频类——"视频/动画/短片/clip/video/animate"；图生图——"改/重绘/换成/P图/风格化"；
-参考生视频——"参考这个视频的动作/运镜"；**调整迭代**——"不满意/再改/重画一版/这版不行/换成另一种风格/细节不够"。
+参考生视频——"参考这张图的角色/风格"、"参考首尾帧"、"参考这个视频的动作/运镜"；
+**调整迭代**——"不满意/再改/重画一版/这版不行/换成另一种风格/细节不够"。
 无法唯一判定时，向用户确认目标类型。
 
 > **迭代优先**：上一轮已生成一张图、用户对其不满意要求"再调整"时，**优先路由到 `image-refine`**
@@ -75,8 +76,8 @@ description: ComfyUI 本地生图/生视频服务的自动化总入口（组合 
 | text-to-image | `skills/text-to-image/SKILL.md` | `image-prompt-guide.md` | `default_sd15_base.json` |
 | image-to-image | `skills/image-to-image/SKILL.md` | `image-prompt-guide.md` | `default_img2img_sdx.json` |
 | text-to-video | `skills/text-to-video/SKILL.md` | `video-prompt-guide.md`（H3→`h3-video-prompt-protocol.md`） | `default_minimax_h3_t2v.json` |
-| image-to-video | `skills/image-to-video/SKILL.md` | `video-prompt-guide.md` | `default_wan_i2v.json` |
-| reference-to-video | `skills/reference-to-video/SKILL.md` | `video-prompt-guide.md`（H3 按素材选 I2VA/FL2VA/L2VA） | `default_wan_vace.json` |
+| image-to-video | `skills/image-to-video/SKILL.md` | `video-prompt-guide.md`（H3→`h3-video-prompt-protocol.md` I2VA） | `default_minimax_h3_i2v.json` |
+| reference-to-video | `skills/reference-to-video/SKILL.md` | `video-prompt-guide.md`（H3→`h3-video-prompt-protocol.md`，按素材选 I2VA/FL2VA/L2VA） | `default_minimax_h3_r2v.json` |
 
 ## 第 2 步：提示词标准化
 
@@ -106,6 +107,9 @@ python3 scripts/comfyui_api.py health && python3 scripts/comfyui_api.py list && 
 
 服务不可达 → 提示用户检查 ComfyUI 是否启动、地址是否正确（`config/comfyui.yaml` / `--server host:port` / 环境变量 `COMFYUI_HOST/PORT`）。
 
+> **H3 生视频质量档**：模板默认绑定**低质量档**（快）。用户对画质不满意 → 换**对应高质量档**重跑
+> （FL2VA / Ref2VA 各有一档；具体文件名与切换命令见 `references/models.md`「质量档位」）。
+
 ## 第 4 步：调用生成
 
 **先定产出目录，不要猜**：`pwd` 取会话工作根，再用
@@ -118,7 +122,7 @@ python3 scripts/comfyui_api.py health && python3 scripts/comfyui_api.py list && 
 cd comfyui-suite
 python3 scripts/comfyui_api.py <类型> \
     --root <会话工作根> --prompt "<英文正向>" --negative "<英文负向>" \
-    [--image <本地路径或base64>] [--video <参考视频>] \
+    [--image <本地路径或base64>] [--image2 <第二张参考图, 尾帧>] \
     [--seed N] [--width W --height H] [--steps N] [--cfg C] [--denoise D] \
     [--checkpoint <模型名>] [--lora <NODE:文件名>] [--lora-strength-model 1.2 --lora-strength-clip 0.9] \
     [--workflow <模板路径>] [--set NODE.INPUT.FIELD=VALUE]

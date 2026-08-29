@@ -6,7 +6,7 @@
       "format.codec": "auto",
       "codec": "auto",
       "video": [
-        "140:130",
+        "105:91",
         0
       ]
     },
@@ -15,9 +15,18 @@
       "title": "保存视频"
     }
   },
+  "114": {
+    "inputs": {
+      "image": "example.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "加载图像"
+    }
+  },
   "115": {
     "inputs": {
-      "aspect_ratio": "16:9 (Widescreen)",
+      "aspect_ratio": "1:1 (Square)",
       "megapixels": 0.4,
       "multiple": 32
     },
@@ -26,7 +35,30 @@
       "title": "分辨率选择器"
     }
   },
-  "140:119": {
+  "119": {
+    "inputs": {
+      "upscale_method": "nearest-exact",
+      "megapixels": 0.9,
+      "resolution_steps": 32
+    },
+    "class_type": "ImageScaleToTotalPixels",
+    "_meta": {
+      "title": "缩放图像（像素）"
+    }
+  },
+  "120": {
+    "inputs": {
+      "image": [
+        "119",
+        0
+      ]
+    },
+    "class_type": "GetImageSize",
+    "_meta": {
+      "title": "获取图像尺寸"
+    }
+  },
+  "105:11": {
     "inputs": {
       "vae_name": "MiniMax-H3\\MiniMax-H3_VideoVAE-FP16.safetensors"
     },
@@ -35,7 +67,7 @@
       "title": "加载VAE"
     }
   },
-  "140:120": {
+  "105:24": {
     "inputs": {
       "vae_name": "MiniMax-H3\\MiniMax-H3_AudioVAE-FP32.safetensors"
     },
@@ -44,14 +76,14 @@
       "title": "加载VAE"
     }
   },
-  "140:121": {
+  "105:23": {
     "inputs": {
       "samples": [
-        "140:125",
+        "105:14",
         0
       ],
       "vae": [
-        "140:120",
+        "105:24",
         0
       ]
     },
@@ -60,14 +92,14 @@
       "title": "VAE解码（音频）"
     }
   },
-  "140:122": {
+  "105:10": {
     "inputs": {
       "samples": [
-        "140:125",
+        "105:14",
         0
       ],
       "vae": [
-        "140:119",
+        "105:11",
         0
       ]
     },
@@ -76,7 +108,7 @@
       "title": "VAE解码"
     }
   },
-  "140:123": {
+  "105:17": {
     "inputs": {
       "sampler_name": "res_multistep"
     },
@@ -85,16 +117,16 @@
       "title": "K采样器选择"
     }
   },
-  "140:124": {
+  "105:9": {
     "inputs": {
       "scheduler": "simple",
       "steps": [
-        "140:136",
+        "105:123",
         0
       ],
       "denoise": 1,
       "model": [
-        "140:135",
+        "105:122",
         0
       ]
     },
@@ -103,26 +135,26 @@
       "title": "基本调度器"
     }
   },
-  "140:125": {
+  "105:14": {
     "inputs": {
       "noise": [
-        "140:129",
+        "105:15",
         0
       ],
       "guider": [
-        "140:126",
+        "105:16",
         0
       ],
       "sampler": [
-        "140:123",
+        "105:17",
         0
       ],
       "sigmas": [
-        "140:124",
+        "105:9",
         0
       ],
       "latent_image": [
-        "140:131",
+        "105:104",
         1
       ]
     },
@@ -131,14 +163,14 @@
       "title": "自定义采样器（高级）"
     }
   },
-  "140:126": {
+  "105:16": {
     "inputs": {
       "model": [
-        "140:135",
+        "105:122",
         0
       ],
       "conditioning": [
-        "140:131",
+        "105:104",
         0
       ]
     },
@@ -147,7 +179,7 @@
       "title": "基本引导器"
     }
   },
-  "140:127": {
+  "105:6": {
     "inputs": {
       "unet_name": "MiniMax-H3\\MiniMax-H3_FL2VA-NVFP4.safetensors",
       "weight_dtype": "default"
@@ -157,7 +189,7 @@
       "title": "UNet加载器"
     }
   },
-  "140:128": {
+  "105:13": {
     "inputs": {
       "clip_name": "MiniMax-H3\\qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
       "type": "minimax",
@@ -168,7 +200,7 @@
       "title": "加载CLIP"
     }
   },
-  "140:129": {
+  "105:15": {
     "inputs": {
       "noise_seed": 757358688076805
     },
@@ -177,17 +209,17 @@
       "title": "随机噪波"
     }
   },
-  "140:130": {
+  "105:91": {
     "inputs": {
       "fps": 24,
       "bit_depth": 8,
       "color_space": "sRGB",
       "images": [
-        "140:122",
+        "105:10",
         0
       ],
       "audio": [
-        "140:121",
+        "105:23",
         0
       ]
     },
@@ -196,9 +228,9 @@
       "title": "创建视频"
     }
   },
-  "140:131": {
+  "105:104": {
     "inputs": {
-      "prompt": "Realistic live-action cinematic look, action movie trailer: practical film photography style, a post-rain dusk metropolis, anamorphic lens, shallow depth of field, film grain, city volumetric fog, flying-car traffic between the towers, restrained grading for a premium feel, powerful natural movement.\n\nScene overview: at dusk on a cluster of skyscrapers, the protagonist is being chased, sprinting and leaping across rooftops, jumping from one building's roof to the next with pursuers closing in behind. This is the escape sequence of an action movie trailer: every leap is life-or-death, thrilling and fluid.\n\nStoryboard (each shot a separate scene, rapid cuts, all landing on the musical beats):\n[0s-1.5s] Shot 1: high side angle: the protagonist sprinting at the roof edge, pursuers appearing in the rooftop doorway behind him, wind catching his coat.\n[1s-2.5s] Shot 2: the protagonist leaps across the gap between buildings, body stretching mid-air, towers and flying-car light trails behind him, a slight slow-motion feel.\n[2.5s-4s] Shot 3: he lands, rolls and rises, low-angle shot, tower shadows and fog behind him, he keeps running.\n[4s-5s] Shot 4: freeze: the instant he hits the edge of the next roof and launches into the jump, silhouette, holding.\n\nCamera: each shot its own angle, cuts clean and hard, no dissolves, a slight frame jitter on the jumps.\n\nAudio: wind, rapid footsteps, city ambience, low score underneath, an accent hit on each leap, the score bursting at 4s, closing the last 1s.\n\nNo text, subtitles, logos or watermarks of any kind, no animation or cartoon rendering, no overly-CG look, keep the live-action texture.",
+      "prompt": "Editorial tech product film. The transparent gaming mouse from <Picture 1> in its original scene: a pitch-black studio void with a dark, subtle reflective surface, lit by dramatic duotone vibrant blue and warm neon orange rim lighting, deep soft shadow falloff into pure black. Monochromatic dark palette with electric blue and amber accents. Material motif: glowing internal metallic micro-components and glossy acrylic refractions. The environment is constant throughout.\nSHOT 1: The scene opens exactly on image 1, the mouse resting confidently on the dark surface; the blue and orange lights slowly pulse brighter, refracting deeply through the transparent acrylic shell as the camera executes a slow, deliberate push-in to reveal the intricate circuitry.\nSHOT 2: Cut to an extreme macro profile of the ridged scroll wheel and layered internal micro-components; the camera glides slowly along the side as a sharp beam of warm orange light sweeps across the metallic textures, contrasting perfectly against the deep blue ambient glow.\nSHOT 3: Cut to a low-angle beauty shot: the mouse levitates weightlessly a few centimeters above the dark reflective surface, rotating in a slow, precise orbit; the duotone lighting flares gently along the glassy transparent edges before fading slowly into a sleek silhouette.\nAudio: deep pulsing sub-bass room tone, sharp tactile mechanical clicks, a sweeping glassy whoosh on cuts, and a rising electronic swell that resolves to near-silence on the final fade.",
       "width": [
         "115",
         0
@@ -208,15 +240,19 @@
         1
       ],
       "length": [
-        "140:132",
+        "105:107",
         1
       ],
       "clip": [
-        "140:128",
+        "105:13",
         0
       ],
       "vae": [
-        "140:119",
+        "105:11",
+        0
+      ],
+      "first_frame": [
+        "114",
         0
       ]
     },
@@ -225,11 +261,11 @@
       "title": "MiniMax H3 Image to Video"
     }
   },
-  "140:132": {
+  "105:107": {
     "inputs": {
       "expression": "max(5, round(a * 24)) + (5 - (max(5, round(a * 24)) % 17)) % 17",
       "values.a": [
-        "140:133",
+        "105:111",
         0
       ]
     },
@@ -238,7 +274,7 @@
       "title": "数学表达式"
     }
   },
-  "140:133": {
+  "105:111": {
     "inputs": {
       "value": 5
     },
@@ -247,12 +283,12 @@
       "title": "Float (duration)"
     }
   },
-  "140:134": {
+  "105:121": {
     "inputs": {
       "lora_name": "MiniMax-H3\\minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors",
       "strength_model": 1,
       "model": [
-        "140:127",
+        "105:6",
         0
       ]
     },
@@ -261,18 +297,18 @@
       "title": "LoRA加载器（仅模型）"
     }
   },
-  "140:135": {
+  "105:122": {
     "inputs": {
       "switch": [
-        "140:139",
+        "105:126",
         0
       ],
       "on_false": [
-        "140:127",
+        "105:6",
         0
       ],
       "on_true": [
-        "140:134",
+        "105:121",
         0
       ]
     },
@@ -281,18 +317,18 @@
       "title": "If/Else Switch (Model)"
     }
   },
-  "140:136": {
+  "105:123": {
     "inputs": {
       "switch": [
-        "140:139",
+        "105:126",
         0
       ],
       "on_false": [
-        "140:137",
+        "105:124",
         0
       ],
       "on_true": [
-        "140:138",
+        "105:125",
         0
       ]
     },
@@ -301,7 +337,7 @@
       "title": "If/Else Switch (Steps)"
     }
   },
-  "140:137": {
+  "105:124": {
     "inputs": {
       "value": 20
     },
@@ -310,7 +346,7 @@
       "title": "整数"
     }
   },
-  "140:138": {
+  "105:125": {
     "inputs": {
       "value": 8
     },
@@ -319,7 +355,7 @@
       "title": "整数"
     }
   },
-  "140:139": {
+  "105:126": {
     "inputs": {
       "value": false
     },

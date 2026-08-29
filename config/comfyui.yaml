@@ -14,7 +14,7 @@
 
 server:
   protocol: http          # http | https
-  host: 10.0.0.1          # ComfyUI 服务地址
+  host: localhost         # ComfyUI 服务地址（本机；已按实际可达地址从 10.0.0.1 修正）
   port: 8188              # ComfyUI 服务端口
   api_key: ""             # 若服务端启用了 --api-key，在此填写（会作为 Authorization: Bearer 头）
 

@@ -14,8 +14,8 @@ description: 通过 ComfyUI API 文生视频。用户只有文字描述、想生
    `prompt-guides/h3-video-prompt-protocol.md`）；传统无声模型（Wan/HunyuanVideo）
    整理为一段 50–120 词英文连贯描述（主体+动作+场景+镜头+光照+风格）。
 2. **确认服务与模板**：视频模型节点差异大，首次使用前确认
-   `workflows/text-to-video/default_wan_t2v.json` 已在 ComfyUI 界面验证可用
-   （见 `workflows/README.md`）。
+   `workflows/text-to-video/default_minimax_h3_t2v.json`（MiniMax-H3 T2VA 音画一体）
+   已在 ComfyUI 界面验证可用（见 `workflows/README.md`）。
 3. **调用**：
 
 ```bash
@@ -37,17 +37,21 @@ python3 scripts/comfyui_api.py text-to-video \
 | 参数 | 说明 |
 |---|---|
 | `--frames` | 帧数，取 8n+1（17/33/49/81）；49 帧 @16fps ≈ 3 秒 |
-| `--fps` | 默认 16（Wan 系）；与模型训练帧率匹配 |
+| `--fps` | 默认 16（Wan 系）；MiniMax-H3 模板用 24（`CreateVideo.fps`，脚本不改写，需改用时 `--set`） |
 | `--width/--height` | 须贴近模型训练分辨率：1280×720（横）/ 720×1280（竖） |
 | `--steps` | 视频默认建议 30–40 |
 | `--cfg` | 视频模型通常 5–6，过高易变形 |
 
+> **质量档**：默认**低质量档**（快）；画质不满意 → 换**高质量档**重跑，配套 CLIP/VAE 不变
+> （FL2VA 具体切换命令见 `references/models.md`「质量档位」）。
+
 ## 默认模板
 
-`workflows/text-to-video/default_*.json`（你导出的 API JSON）。
-**请用你服务端实际跑通的导出 JSON 替换**：`--prompt` 写入 CLIPTextEncode，
-`--frames/--width/--height` 写入空 latent 节点，`--checkpoint` 写入加载器。
-视频模型节点结构差异大（Wan/HunyuanVideo/H3），务必用对应导出 JSON。
+`workflows/text-to-video/default_minimax_h3_t2v.json`（MiniMax-H3 T2VA 音画一体，你导出的 API JSON）。
+H3 范式注入点独立：`--prompt` 写入 H3 音画节点 `.prompt`，`--width/--height` 写入
+`ResolutionSelector`，`--frames` 写帧数表达式链，`--checkpoint` 写入 `UNETLoader.unet_name`。
+H3 无单独 negative（负向内容写在 prompt 内）。视频模型节点结构差异大（Wan/HunyuanVideo/H3），
+务必用对应导出 JSON。
 
 ## 常见问题
 

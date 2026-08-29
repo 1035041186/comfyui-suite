@@ -17,12 +17,13 @@
 | `text-to-image` | `default_sd15_base.json` | SD 整包 | ✅ 真实可跑 |
 | `text-to-image`（备选） | `krea2.json` | Krea2 分体 | ✅ 真实可跑（需 `--workflow krea2.json`） |
 | `image-to-image` | `default_img2img_sdx.json` | SD（整包+VAEEncode） | ✅ 真实可跑 |
-| `text-to-video` | `default_minimax_h3_t2v.json` | MiniMax-H3 音画 | ✅ 真实可跑 |
-| `image-to-video` | `default_wan_i2v.json` | Wan | ⚠️ **骨架参考，绑定 wan 模型；若服务端无 wan 需替换导出 JSON** |
-| `reference-to-video` | `default_wan_vace.json` | Wan | ⚠️ **骨架参考，绑定 wan；需替换真实导出 JSON** |
+| `text-to-video` | `default_minimax_h3_t2v.json` | MiniMax-H3 音画（T2VA） | ✅ 真实可跑 |
+| `image-to-video` | `default_minimax_h3_i2v.json` | MiniMax-H3 音画（I2VA 首帧） | ✅ 真实可跑 |
+| `reference-to-video` | `default_minimax_h3_r2v.json` | MiniMax-H3 音画（Ref2VA/FL2VA 双参考图） | ✅ 真实可跑 |
 
-> ⚠️ `image-to-video` / `reference-to-video` 目前是**占位骨架**（绑定了服务端不存在的 wan 模型），
-> 请用你环境实际跑通的导出 JSON 替换（`validate` 会提示模型名不匹配）。
+> 生视频三类型均为 **MiniMax-H3 音画一体**，提示词按 `prompt-guides/h3-video-prompt-protocol.md`。
+> 其中 `reference-to-video` 是**两帧参考图**（首帧→`ref_image_0`、尾帧→`ref_image_1`）驱动，**不是参考视频**；
+> 对应 CLI 用 `--image`（首帧）+ `--image2`（尾帧）。
 
 ## 核心思想：导出即模板（主路径，无需手工改）
 
@@ -46,15 +47,17 @@
 | `--prefix` | `Save*` 节点的 `filename_prefix` |
 | `--set NODE.FIELD=VALUE` | **任意**节点的任意输入字段（精确兜底，如 `5.inputs.cfg=5.5`） |
 
-**MiniMax-H3 音画视频范式**（模板含 `MiniMaxH3ImageToVideo` 节点时自动切换注入方式，
-无 KSampler，落点独立）：
+**MiniMax-H3 音画视频范式**（模板含 `MiniMaxH3ImageToVideo` 或
+`MiniMaxH3ReferenceToVideo` 节点时自动切换注入方式，无 KSampler，落点独立）：
 
 | CLI 参数 | 注入到哪个节点 |
 |---|---|
-| `--prompt` | `MiniMaxH3ImageToVideo.prompt`（H3 无单独 negative，负向内容在 prompt 内写） |
+| `--prompt` | H3 音画节点 `.prompt`（ImageToVideo / ReferenceToVideo 均适用；H3 无单独 negative，负向内容在 prompt 内写） |
 | `--seed` | `RandomNoise.noise_seed` |
-| `--width/--height` | `ResolutionSelector`（`aspect_ratio`/`megapixels`）或 `MiniMaxH3ImageToVideo` |
+| `--width/--height` | `ResolutionSelector`（`aspect_ratio`/`megapixels`）或 H3 音画节点 |
 | `--frames` | 帧数表达式链上游的 `PrimitiveFloat/Int.value` |
+| `--image` | I2VA→驱动 `first_frame` 的 `LoadImage`；Ref2VA/FL2VA→`ref_image_0` |
+| `--image2` | Ref2VA/FL2VA→`ref_image_1`（尾帧参考；缺省复用 `--image`） |
 | `--lora` | `LoraLoaderModelOnly.lora_name` + `strength_model` |
 | `--checkpoint` | `UNETLoader.unet_name` 等 |
 
@@ -85,7 +88,7 @@
   `default_minimax_h3_t2v`（MiniMax-H3 文生视频）；
 - 非默认模板用 `default_` 之外的前缀，如 `krea2.json`（需 `--workflow` 显式选）；
 - 避免 `sdx15`/`x1` 这类易被误读为别的栈的名字；栈名后缀规范：
-  `sd15`（SD1.5）、`sdxl`（SDXL）、`krea2`、`h3`。
+  `sd15`（SD1.5）、`sdxl`（SDXL）、`krea2`、`minimax_h3`（MiniMax-H3）。
 
 > ⚠️ 命名是路由的"眼睛"：`list` 只能显示文件名，LLM 靠文件名 + models.md 判断用哪个栈。
 > 命名模糊会让多模板场景下选错工作流。

@@ -38,12 +38,16 @@ python3 scripts/comfyui_api.py image-to-video \
 | `--width/--height` | 建议与输入图比例一致，避免拉伸 |
 | 其余 | 同 text-to-video |
 
+> **质量档**：默认**低质量档**（快）；画质不满意 → 换**高质量档**重跑，配套 CLIP/VAE 不变
+> （FL2VA 具体切换命令见 `references/models.md`「质量档位」）。
+
 ## 默认模板
 
-`workflows/image-to-video/default_*.json`（你导出的 API JSON）。
-**请用你服务端实际跑通的 I2V 导出 JSON 替换**：`--image` 上传后写入 `LoadImage.image`，
-提示词写入 CLIPTextEncode，`--frames/--width/--height` 写入空 latent 节点。
-不同 I2V 模型（Wan/SVD/HunyuanVideo/H3）节点接入不同，务必用对应导出 JSON。
+`workflows/image-to-video/default_minimax_h3_i2v.json`（MiniMax-H3 I2VA 首帧，音画一体，
+你导出的 API JSON）。H3 范式注入点独立：`--prompt` 写入 H3 音画节点 `.prompt`，
+`--width/--height` 写入 `ResolutionSelector`，`--frames` 写帧数表达式链，
+`--image` 写入驱动 `first_frame` 的 `LoadImage`。H3 无单独 negative（负向内容写在 prompt 内）。
+不同 I2V 模型（H3/SVD/HunyuanVideo/Wan）节点接入不同，务必用对应导出 JSON。
 
 ## 常见问题
 

@@ -4,6 +4,35 @@
 
 ---
 
+## [v1.6.1] - 2026-08-29 18:10:19
+
+**更新作者**: yiping zhang
+**更新类型**: 需求调整
+
+### 更新内容
+- 生视频三类型工作流（`text-to-video` / `image-to-video` / `reference-to-video`）全部替换为 **MiniMax-H3 音画一体**真实导出模板，移除原 Wan 占位骨架（此前 `image-to-video`/`reference-to-video` 只是绑定 wan 模型的占位框架）。
+- **命名修正**：`default_wan_i2v.json` → `default_minimax_h3_i2v.json`（I2VA 首帧）；`default_wan_vace.json` → `default_minimax_h3_r2v.json`（Ref2VA/FL2VA 双参考图）；`text-to-video` 沿用已验证的 `default_minimax_h3_t2v.json`。
+- **`reference-to-video` 语义更新**：由参考视频驱动改为**两帧参考图**驱动（首帧→`ref_image_0`、尾帧→`ref_image_1`），对应 CLI 用 `--image`（首帧）+ `--image2`（尾帧）；提示词按 H3 FL2VA 协议写 `<Picture 1>`/`<Picture 2>` 锚定时刻。
+- **脚本 `scripts/comfyui_api.py`**：H3 范式识别由 `MiniMaxH3ImageToVideo` 扩展至 `MiniMaxH3ReferenceToVideo`；H3 分支补上传图片注入（`first_frame` / `ref_images.*` 槽位）；新增 `--image2` 并支持缺省复用 `--image`；`reference-to-video` 不再强制 `--video`（H3 双图模板会忽略并告警）。
+- **文档同步**：`workflows/README.md`（模板状态表、H3 注入表、命名规范）、`SKILL.md`（路由表、类型资源表、第 4 步示例）、`skills/{image-to-video,reference-to-video,text-to-video}/SKILL.md` 全部更新为 MiniMax-H3 实际接入与 `--image/--image2` 用法。
+- **H3 质量档位标注（按用户指正修正；并连上 localhost:8188 用 `info` 核对真实模型清单）**：H3 视频每类分**两档**——`FL2VA-NVFP4`/`Ref2VA-NVFP4` 为**低质量档**（默认、快），`{fl2va,ref2va}_pruned_int8_convrot` 为**高质量档**（`minimax_h3_ref2va_pruned_int8_convrot` 即 Ref2VA 高质量档）；`references/models.md` 明确质量档位表、按任务类型的「画质不满意→换对应高质量档重跑」切换指引、CLIP 表（校正 H3 用 `qwen3vl_32b`），默认保持低质量档。模型名只保留在 `references/models.md`（单一事实来源）；`SKILL.md` 与三个视频子 skill 仅保留「行为规则 + 指向」的质量档注记，避免重复漂移。
+- **服务地址修正**：`config/comfyui.yaml` 的 `host` 从 `10.0.0.1` 改为 `localhost`（实测原地址不可达、真实服务在 `localhost:8188`，避免自动化默认连不上）。
+
+### 影响文件
+- `workflows/image-to-video/default_wan_i2v.json` → 重命名 `default_minimax_h3_i2v.json`
+- `workflows/reference-to-video/default_wan_vace.json` → 重命名 `default_minimax_h3_r2v.json`
+- `scripts/comfyui_api.py` — H3 节点识别/图片注入/`--image2`/放宽 `--video`
+- `references/models.md` — H3 质量档位表 + 更换流程（选质量档）
+- `workflows/README.md` — 模板状态、H3 注入表、命名规范
+- `SKILL.md` — 路由表 + 类型资源表 + 第 4 步示例 + 质量档注记（收敛为指向）
+- `skills/image-to-video/SKILL.md` — 默认模板接入说明 + 质量档提示（收敛为指向）
+- `skills/reference-to-video/SKILL.md` — 改为 H3 双参考图流程 + 质量档提示（收敛为指向）
+- `skills/text-to-video/SKILL.md` — 修正模板名 + H3 注入说明 + 质量档提示（收敛为指向）
+- `config/comfyui.yaml` — server.host `10.0.0.1` → `localhost`
+- `CHANGELOG.md` — 本条目
+
+---
+
 ## [v1.6.0] - 2026-08-29 17:14:12
 
 **更新作者**: yiping zhang
