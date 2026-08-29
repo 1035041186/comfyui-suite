@@ -4,6 +4,24 @@
 
 ---
 
+## [v1.5.2] - 2026-08-29 16:58:17
+
+**更新作者**: yiping zhang
+**更新类型**: 需求调整
+
+### 更新内容
+- `AGENTS.md` 瘦身为精简单规则（70→32 行）：删除与 `SKILL.md`/`references` 重复的五步流程、同类型路由、交付报告、参数注入等细节，只留渐进式披露 + 四条关键红线（提示词须英文 / 模型名须真实 / 交付报告四要素 / 模板-模型-风格三层关系）+ 通用基线。
+- `SKILL.md` 重构为薄调度器（181→125 行）：新增「执行纪律（减少 LLM 往返）」——一次推理完成路由+提示词、`health/list/info` 合并为一条命令、按需才 `validate`；新增「类型资源查表」（类型→子 skill→提示词标准→默认模板）；内联字段注入表与 `--workflow` 长说明下沉到 `workflows/README.md` 与子 skill；第 5 步交付报告压缩为指向 `references/reporting.md` 的指针。
+- 五步流程与路由说明去重：仅 `SKILL.md` 一处权威定义；`references/guide.md`、`references/reporting.md` 本就只引用不复述，未改动。
+- 功能连续性核验：SKILL.md 引用的命令/flag 对照 `scripts/comfyui_api.py --help` 全部真实；「类型资源查表」默认模板与 `lists` 输出一致；无对已删章节的悬空引用。
+
+### 影响文件
+- `AGENTS.md` — 瘦身、去重（70→32 行）
+- `SKILL.md` — 改为薄调度器、新增减少往返纪律、按类型拆分、去重（181→125 行）
+- `CHANGELOG.md` — 本条目
+
+---
+
 ## [v1.5.1] - 2026-08-28 23:49:40
 
 **更新作者**: yiping zhang
