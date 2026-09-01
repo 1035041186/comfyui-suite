@@ -32,8 +32,10 @@
 python3 scripts/comfyui_api.py <类型> --prompt "..." --seed N --width W --height H ...
 
 【结果】
+> 产物：脚本 `files[]` 里的**每一个**都要展示，**一个都不漏**（批量/多张约定见下方「多张产物约定」）。
 > 预览（图片用 Markdown 内联显示，URL 直接取自脚本输出里的 `preview_url`）：
 >   ![生成图](<preview_url>)
+>   多张时逐张一行：![生成图1](<preview_url_1>) ／ ![生成图2](<preview_url_2>) ……
 >   非图片产物（视频/GIF）不内联，改为直接链接：<preview_url>
 > 文件路径：`outputs/text-to-image/20260828_1143_t2i_xxx.png`（inline code 引用，可点击打开）
 > 校验：validate 是否通过（模型名/节点匹配）｜失败原因
@@ -50,6 +52,17 @@ python3 scripts/comfyui_api.py <类型> --prompt "..." --seed N --width W --heig
   （`<时间戳>_<原文件名>`），**只能**用作上面的本地路径 inline code，**不能**放进 `/view` URL，否则 404。
 - 浏览器需能访问到该 host（用户查看端与服务同机/同网段）；图片在 Markdown 里用 `![alt](URL)` 内联显示，
   视频/GIF 建议直接放链接。
+
+### 多张产物约定（批量必读）
+
+- 脚本返回的 `files[]` **即全部产物**（如 `--batch N` 时就是 N 张）；交付时**必须把 `files[]` 里的每一个
+  都展示出来**——**只展示其中一张、只挑一部分、或截断剩余的，都属于漏交付**。
+- **多张图片**：逐张内联，每张一行 `![生成图i](<preview_url_i>)`；多张非图片（视频/GIF）逐张放链接，
+  各自一行。
+- **不要因为"太多"就只贴几张或改贴链接**：要么全列，要么先说明"共 N 张"后**仍全列**；
+  文件路径（本地 `outputs/...`）同样**逐个**用 inline code 列出，与预览一一对应。
+- 若某张产物在 `files[]` 中带 `download_error`（下载失败），也要在结果里如实标注该张失败，
+  而不是静默省略它。
 
 ### 调用序列写法说明
 

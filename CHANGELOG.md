@@ -4,6 +4,26 @@
 
 ---
 
+## [v1.6.3] - 2026-09-01 23:49:23
+
+**更新作者**: yiping zhang
+**更新类型**: 需求调整
+
+### 更新内容
+- **批量产物约定（返回几个就展示几个）**：交付报告规范新增「多张产物约定」——脚本返回的 `files[]` 即全部产物，**必须逐个全展示**（只展示一张、只挑一部分、或截断剩余的，都算漏交付）；多张图逐张一行内联 `![生成图i](<preview_url_i>)`、非图片（视频/GIF）逐张放链接；不要因"太多"而省略；某张下载失败也要如实标注而非静默省略。
+- **预览裂开修复**：`config/comfyui.yaml` 的 `server.host` 由 `localhost` 改为 `127.0.0.1`——本机 localhost 解析为 IPv6 `::1`，而 ComfyUI 只监听 IPv4 127.0.0.1，浏览器加载 `/view` 预览图会因 IPv6 回退失败而裂开（curl 会自动回退所以测试能通，浏览器不一定）。
+- **同步**：`SKILL.md` 第 5 步与 `skills/text-to-image`、`skills/image-to-image` 的交付步骤均补上「多个产物必须逐个全展示」的要求，指向 reporting.md 约定。
+
+### 影响文件
+- `references/reporting.md` — 新增「多张产物约定」、更新【结果】模板
+- `config/comfyui.yaml` — `server.host` `localhost`→`127.0.0.1`（IPv6 预览裂开修复）
+- `SKILL.md` — 第 5 步：脚本返回的多个产物须逐个全展示
+- `skills/text-to-image/SKILL.md` — 交付步骤补多张全展示说明
+- `skills/image-to-image/SKILL.md` — 交付步骤补多张全展示说明
+- `CHANGELOG.md` — 本条目
+
+---
+
 ## [v1.6.2] - 2026-08-29 19:52:14
 
 **更新作者**: yiping zhang

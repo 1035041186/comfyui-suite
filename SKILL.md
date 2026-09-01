@@ -137,6 +137,8 @@ python3 scripts/comfyui_api.py <类型> \
 
 用一段**可读的中文说明**交代**调用序列**（用了哪些子 skill、按什么顺序，含跳过的步骤）、
 **调用链**（类型→工作流→模型）、**关键参数**、**结果**；参数用代码块精确呈现，描述用自然语言，
-**不要只丢一个文件路径或一堆 JSON**。完整规范与示例见 **`references/reporting.md`**（交付前按需参考）。
+**不要只丢一个文件路径或一堆 JSON**。结果里脚本返回的**多个产物（如批量）必须逐个全展示，一个都不漏**
+（多张图逐张内联、非图片给链接；约定见 `references/reporting.md`「多张产物约定」）。
+完整规范与示例见 **`references/reporting.md`**（交付前按需参考）。
 
 失败按阶段定位：连接失败 → 配置/服务问题；任务 error → workflow 与模型不匹配（按 `workflows/README.md` 重新导出模板）；超时 → 调大 `config/comfyui.yaml` 的 `timeouts.poll_max`。

@@ -38,6 +38,7 @@ python3 scripts/comfyui_api.py image-to-image \
    与调用链（类型→工作流→模型）、关键参数（denoise/seed/尺寸）与实际命令。结果用两条并给出：
    `preview_url`（host/port 从 `config/comfyui.yaml` 读取，与服务地址一致）用 `![生成图](<preview_url>)` 内联展示；
    `downloaded`/`local_path` 即本地图片路径，用 inline code 引用告诉用户文件存放位置。
+   **若返回多张（如 `--batch N`），逐张内联全部展示，一个都不漏**（详见 `references/reporting.md`「多张产物约定」）。
 
 ## 参数要点
 

@@ -14,7 +14,9 @@
 
 server:
   protocol: http          # http | https
-  host: localhost         # ComfyUI 服务地址（本机；已按实际可达地址从 10.0.0.1 修正）
+  host: 127.0.0.1         # ComfyUI 服务地址（本机 IPv4）。不要用 localhost：本机 localhost 解析为
+                          # IPv6 ::1，而 ComfyUI 只监听 IPv4 127.0.0.1，浏览器加载预览图会因
+                          # IPv6 回退失败而裂开（curl 会自动回退所以测试能通，浏览器不一定）。
   port: 8188              # ComfyUI 服务端口
   api_key: ""             # 若服务端启用了 --api-key，在此填写（会作为 Authorization: Bearer 头）
 
